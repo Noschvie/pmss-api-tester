@@ -1,0 +1,241 @@
+{
+  "realm": "pmss-test",
+  "enabled": true,
+  "accessTokenLifespan": 300,
+  "defaultDefaultClientScopes": [
+    "basic"
+  ],
+  "defaultOptionalClientScopes": [],
+  "roles": {
+    "realm": [
+      {
+        "name": "security-admin",
+        "description": "May change MQTT permissions (scope write)"
+      }
+    ]
+  },
+  "clientScopes": [
+    {
+      "name": "basic",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-security-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "phylax-mqtt-security-service",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "write",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-security-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "phylax-mqtt-security-service",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "scopeMappings": [
+    {
+      "clientScope": "write",
+      "roles": [
+        "security-admin"
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "phylax-mqtt-security-service",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "unused",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "basic"
+      ],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "msm-test-rw",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "msm-test-rw-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "basic",
+        "read",
+        "write"
+      ],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "msm-test-ro",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "msm-test-ro-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "basic",
+        "read"
+      ],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "msm-test-rw-norole",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "msm-test-rw-norole-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "basic",
+        "read",
+        "write"
+      ],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "tasmofleet-test",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "tasmofleet-test-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "standard.token.exchange.enabled": "true"
+      },
+      "defaultClientScopes": [
+        "basic"
+      ],
+      "optionalClientScopes": [
+        "read",
+        "write"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@example.test",
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Test",
+      "realmRoles": [
+        "security-admin"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "alice",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "bob",
+      "enabled": true,
+      "email": "bob@example.test",
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Test",
+      "realmRoles": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "bob",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "service-account-msm-test-rw",
+      "enabled": true,
+      "serviceAccountClientId": "msm-test-rw",
+      "realmRoles": [
+        "security-admin"
+      ]
+    },
+    {
+      "username": "service-account-msm-test-ro",
+      "enabled": true,
+      "serviceAccountClientId": "msm-test-ro",
+      "realmRoles": []
+    },
+    {
+      "username": "service-account-msm-test-rw-norole",
+      "enabled": true,
+      "serviceAccountClientId": "msm-test-rw-norole",
+      "realmRoles": []
+    }
+  ]
+}
