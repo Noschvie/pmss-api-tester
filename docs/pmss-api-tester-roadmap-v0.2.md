@@ -204,17 +204,17 @@ The following list defines the planned scope. The exact mapping to individual AP
 
 ### Phase 2 – Keycloak Login
 
-- [ ] Configure the Keycloak client for the tester
-- [ ] Implement the Authorization Code Flow with PKCE
-- [ ] Set up a BFF session and secure cookies
-- [ ] Keep tokens exclusively server-side
-- [ ] Handle logout, session expiration, and CSRF protection for state-changing UI actions
-- [ ] Implement server-side token exchange according to RFC 8693
-- [ ] Make the audience configurable per target system (PMSS: `phylax-mqtt-security-service`)
-- [ ] Request only `read` and evaluate the returned scopes
-- [ ] Display token-exchange error cases clearly
+- [x] Document Keycloak client requirements (Standard Flow, PKCE, redirect URI, token-exchange permission)
+- [x] Implement the Authorization Code Flow with PKCE
+- [x] Set up an in-memory BFF session and secure cookies
+- [x] Keep tokens exclusively server-side
+- [x] Handle logout, session expiration, and CSRF protection for state-changing UI actions
+- [x] Implement server-side token exchange according to RFC 8693
+- [x] Make the audience configurable per target system (PMSS: `phylax-mqtt-security-service`)
+- [x] Request only `read` and evaluate the returned scopes
+- [x] Display token-exchange error cases clearly
 
-**Result:** A user can log in; the backend can obtain a user-specific `read` token server-side for the configured API target.
+**Result:** The application supports a user-specific server-side login and `read` token exchange when its Keycloak client is configured as described in the README.
 
 ### Phase 3 – API Explorer
 
