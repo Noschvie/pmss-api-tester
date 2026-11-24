@@ -245,6 +245,36 @@ Lesende Negativtests (z. B. fehlendes oder ungültiges Token und nicht vorhanden
 
 Nicht sinnvoll oder nicht sicher ausführbare Fälle erhalten `NOT TESTED` oder `BLOCKED`, niemals `PASS`.
 
+### 6.3 Teststufen und Unit-Tests
+
+Die Qualitätssicherung folgt einer abgestuften Teststrategie:
+
+1. **Unit-Tests**
+   - prüfen isolierte Konfigurations-, Validierungs- und fachliche Testlogik,
+   - verwenden tabellarische Tests für Statusauswertung, Scopes, Header, ETags,
+     RFC-9457-Problem-Details und die Zustände `PASS`, `FAIL`, `BLOCKED` und `NOT TESTED`,
+   - verwenden `httptest.Server` beziehungsweise `httptest.ResponseRecorder` für
+     deterministische HTTP-Szenarien,
+   - prüfen insbesondere auch die Read-only-Sperre und die Trennung von Core API und PMSS Extra.
+
+2. **Integrationstests**
+   - prüfen das Zusammenspiel mehrerer Backend-Komponenten und die vollständige HTTP-Verarbeitung,
+   - verwenden nach Möglichkeit lokale Testserver und reproduzierbare Testdaten,
+   - dürfen keine produktiven PMSS-Ziele oder mutierenden Aufrufe voraussetzen.
+
+3. **End-to-End-Tests**
+   - prüfen zentrale Benutzerabläufe einschließlich Anmeldung, API Explorer und Ergebnisdarstellung,
+   - werden mit Playwright ausgeführt,
+   - visuelle Regressionstests bleiben auf zentrale UI-Zustände begrenzt.
+
+4. **Referenztests**
+   - prüfen einen vollständigen Lauf gegen eine ausdrücklich dafür bereitgestellte PMSS-Referenzinstanz,
+   - sind getrennt von den deterministischen Unit- und Integrationstests auszuführen,
+   - dokumentieren Zielsystem, Version, Berechtigungen und Testvoraussetzungen.
+
+Unit-Tests prüfen die korrekte Implementierung des Testers. Die fachlichen Test Procedures
+prüfen dagegen das Verhalten des Zielsystems; beide Ebenen werden nicht gegenseitig ersetzt.
+
 ---
 
 ## 7. OpenAPI-Integration

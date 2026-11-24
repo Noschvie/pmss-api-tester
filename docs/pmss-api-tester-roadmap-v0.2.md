@@ -244,12 +244,17 @@ Die folgende Liste bildet den geplanten Umfang ab. Die genaue Zuordnung zu einze
 
 ### Phase 5 – Qualitätssicherung und Bereitstellung
 
-- [ ] Unit-Tests für API- und Testlogik
-- [ ] Playwright-E2E-Tests für Login und zentrale Workflows
-- [ ] visuelle Regressionstests nach TasmoFleet-Konventionen
+- [ ] Unit-Tests für Konfiguration, OpenAPI-Validierung und HTTP-Handler
+- [ ] tabellarische Unit-Tests für Statusauswertung, Scopes, Header, ETags,
+      RFC-9457-Problem-Details und `PASS`/`FAIL`/`BLOCKED`/`NOT TESTED`
+- [ ] HTTP-Szenarien mit `httptest.Server` und `httptest.ResponseRecorder` abdecken
+- [ ] Read-only-Sperre sowie Core-/PMSS-Extra-Trennung testen
+- [ ] Integrationstests für die vollständige Backend- und HTTP-Verarbeitung
+- [ ] Playwright-E2E-Tests für Login, API Explorer und zentrale Workflows
+- [ ] begrenzte visuelle Regressionstests nach TasmoFleet-Konventionen
 - [ ] Docker-Build und Laufzeittest
 - [ ] Dokumentation der Konfiguration und des Betriebs
-- [ ] Testlauf gegen PMSS als Referenzimplementierung
+- [ ] dokumentierten Testlauf gegen eine PMSS-Referenzimplementierung durchführen
 
 **Ergebnis:** Reproduzierbar baubares und testbares Release des API Testers.
 
@@ -292,6 +297,7 @@ Der erste Prototyp gilt als erreicht, wenn:
 - HTTP-Status, Header und Response-Body sichtbar sind,
 - erste Authentifizierungs-, Berechtigungs- und Response-Prüfungen ausführbar sind,
 - Testergebnisse nachvollziehbar als `PASS`, `FAIL`, `NOT TESTED` oder `BLOCKED` erscheinen,
+- die vorhandenen Unit- und Integrationstests erfolgreich ausführbar sind,
 - mutierende Aufrufe auch bei direkter Anfrage an das Backend nicht ausgeführt werden können.
 
 ---
