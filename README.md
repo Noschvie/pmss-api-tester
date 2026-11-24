@@ -136,6 +136,6 @@ limited to 1 MiB in the explorer.
 
 ## Acknowledgements
 
-Thanks to [TasmoFleet](https://github.com/Noschvie/TasmoFleet) for the design inspiration. This
+Thanks to [TasmoFleet](https://github.com/hellwand/TasmoFleet) for the design inspiration. This
 project is an API explorer and conformance tester for the
 [Phylax MQTT Security Service](https://github.com/Noschvie/phylax-mqtt-security-service).
