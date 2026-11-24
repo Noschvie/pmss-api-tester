@@ -26,9 +26,9 @@ templ Page(state PageState) {
 						<a class="nav-item active" href="/" aria-current="page">
 							<span class="nav-icon" aria-hidden="true">▦</span><span>Übersicht</span>
 						</a>
-						<div class="nav-item nav-muted" aria-disabled="true">
-							<span class="nav-icon" aria-hidden="true">⌘</span><span>API Explorer</span><span class="nav-soon">Demnächst</span>
-						</div>
+						<a class="nav-item" href="/api-explorer">
+							<span class="nav-icon" aria-hidden="true">⌘</span><span>API Explorer</span>
+						</a>
 						<div class="nav-item nav-muted" aria-disabled="true">
 							<span class="nav-icon" aria-hidden="true">✓</span><span>Prüfungen</span><span class="nav-soon">Demnächst</span>
 						</div>
@@ -77,8 +77,13 @@ templ Page(state PageState) {
 							</article>
 							<article class="status-card">
 								<div class="card-topline"><span>Zielsystem</span><span class="card-symbol blue" aria-hidden="true">◎</span></div>
-								<div class="card-value">Noch nicht konfiguriert</div>
-								<div class="card-note">PMSS-Verbindung folgt in Phase 3</div>
+								if state.PMSSConfigured {
+									<div class="card-value"><a class="target-link" href="/api-explorer">{ state.PMSSAPIBaseURL }</a></div>
+									<div class="card-note">HTTPS-Zielsystem · <a href="/api-explorer">API Explorer öffnen</a></div>
+								} else {
+									<div class="card-value">Noch nicht konfiguriert</div>
+									<div class="card-note"><a href="/api-explorer">Ziel und API Explorer einrichten</a></div>
+								}
 							</article>
 							<article class="status-card">
 								<div class="card-topline"><span>API-Spezifikation</span><span class="card-symbol blue" aria-hidden="true">⌗</span></div>

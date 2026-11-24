@@ -12,7 +12,8 @@ import (
 
 func TestHealthEndpoint(t *testing.T) {
 	response := httptest.NewRecorder()
-	NewHandler(config.Config{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	handler := mustNewHandler(t, config.Config{})
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
@@ -26,15 +27,15 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestHomePageAndEmbeddedAssets(t *testing.T) {
-	handler := NewHandler(config.Config{})
+	handler := mustNewHandler(t, config.Config{})
 
 	page := httptest.NewRecorder()
 	handler.ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/", nil))
 	if page.Code != http.StatusOK {
 		t.Fatalf("home page status = %d, want %d", page.Code, http.StatusOK)
 	}
-	if !strings.Contains(page.Body.String(), "PMSS API Tester") || !strings.Contains(page.Body.String(), "htmx.min.js") {
-		t.Fatal("home page is missing its title or HTMX integration")
+	if !strings.Contains(page.Body.String(), "PMSS API Tester") || !strings.Contains(page.Body.String(), "htmx.min.js") || !strings.Contains(page.Body.String(), `href="/api-explorer"`) {
+		t.Fatal("home page is missing its title, HTMX integration, or API Explorer navigation")
 	}
 
 	asset := httptest.NewRecorder()
@@ -65,9 +66,53 @@ func TestHomePageAndEmbeddedAssets(t *testing.T) {
 	}
 }
 
+func TestAPIExplorerSeparatesOperationsAndShowsReadOnlyStatus(t *testing.T) {
+	handler := mustNewHandler(t, config.Config{PMSSAPIBaseURL: "https://pmss.example.org"})
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api-explorer", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("API Explorer status = %d, want %d", response.Code, http.StatusOK)
+	}
+	for _, expected := range []string{"Core API", "PMSS Extra", "getInfo", "GET ausführen", "BLOCKED", "Response-Schema"} {
+		if !strings.Contains(response.Body.String(), expected) {
+			t.Errorf("API Explorer is missing %q", expected)
+		}
+	}
+}
+
+func TestAPIExplorerBlocksNonGETOperations(t *testing.T) {
+	handler := mustNewHandler(t, config.Config{PMSSAPIBaseURL: "https://pmss.example.org"})
+	body := strings.NewReader("operation_id=createClient&method=POST")
+	request := httptest.NewRequest(http.MethodPost, "/api-explorer/execute", body)
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusForbidden)
+	}
+	if !strings.Contains(response.Body.String(), "BLOCKED") || !strings.Contains(response.Body.String(), "Nur GET-Aufrufe") {
+		t.Fatal("non-GET operation was not clearly blocked")
+	}
+}
+
+func TestAPIExplorerRequiresConfiguredHTTPSBaseURL(t *testing.T) {
+	handler := mustNewHandler(t, config.Config{})
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api-explorer", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("API Explorer status = %d, want %d", response.Code, http.StatusOK)
+	}
+	if !strings.Contains(response.Body.String(), "HTTPS-Basis-URL") {
+		t.Fatal("unconfigured PMSS target was not reported")
+	}
+}
+
 func TestUnknownRouteReturnsNotFound(t *testing.T) {
 	response := httptest.NewRecorder()
-	NewHandler(config.Config{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/missing", nil))
+	mustNewHandler(t, config.Config{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/missing", nil))
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
 	}
@@ -77,8 +122,17 @@ func TestLogoutRequiresSessionAndCSRFToken(t *testing.T) {
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/auth/logout", strings.NewReader("csrf_token=forged"))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	NewHandler(config.Config{}).ServeHTTP(response, request)
+	mustNewHandler(t, config.Config{}).ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusForbidden)
 	}
+}
+
+func mustNewHandler(t *testing.T, cfg config.Config) http.Handler {
+	t.Helper()
+	handler, err := NewHandler(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return handler
 }

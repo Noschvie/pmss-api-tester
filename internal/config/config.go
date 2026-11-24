@@ -12,8 +12,9 @@ import (
 const defaultHTTPAddr = ":8080"
 
 type Config struct {
-	HTTPAddr string
-	OIDC     OIDCConfig
+	HTTPAddr       string
+	PMSSAPIBaseURL string
+	OIDC           OIDCConfig
 }
 
 type OIDCConfig struct {
@@ -86,7 +87,14 @@ func Load() (Config, error) {
 		}
 	}
 
-	return Config{HTTPAddr: addr, OIDC: oidcConfig}, nil
+	pmssAPIBaseURL := strings.TrimRight(os.Getenv("PMSS_API_BASE_URL"), "/")
+	if pmssAPIBaseURL != "" {
+		if err := validateHTTPSURL("PMSS_API_BASE_URL", pmssAPIBaseURL); err != nil {
+			return Config{}, err
+		}
+	}
+
+	return Config{HTTPAddr: addr, PMSSAPIBaseURL: pmssAPIBaseURL, OIDC: oidcConfig}, nil
 }
 
 func validateHTTPURL(name, value string) error {
@@ -96,6 +104,17 @@ func validateHTTPURL(name, value string) error {
 	}
 	if parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return fmt.Errorf("invalid %s %q: user info, query, and fragment are not allowed", name, value)
+	}
+	return nil
+}
+
+func validateHTTPSURL(name, value string) error {
+	if err := validateHTTPURL(name, value); err != nil {
+		return err
+	}
+	parsed, _ := url.Parse(value)
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("invalid %s %q: HTTPS is required", name, value)
 	}
 	return nil
 }

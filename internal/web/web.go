@@ -9,8 +9,11 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/noschvie/pmss-api-tester/api"
 	"github.com/noschvie/pmss-api-tester/internal/auth"
 	"github.com/noschvie/pmss-api-tester/internal/config"
+	"github.com/noschvie/pmss-api-tester/internal/openapi"
+	"github.com/noschvie/pmss-api-tester/internal/pmss"
 )
 
 //go:generate go run github.com/a-h/templ/cmd/templ@v0.3.1118 generate
@@ -18,11 +21,33 @@ import (
 //go:embed static/*
 var staticFiles embed.FS
 
-func NewHandler(cfg config.Config) http.Handler {
+func NewHandler(cfg config.Config) (http.Handler, error) {
 	mux := http.NewServeMux()
 	authService := auth.New(cfg.OIDC)
+	operations, err := openapi.Catalog(api.Definition())
+	if err != nil {
+		return nil, err
+	}
+	operationsByID := make(map[string]openapi.Operation, len(operations))
+	for _, operation := range operations {
+		operationsByID[operation.ID] = operation
+	}
+	var pmssClient *pmss.Client
+	if cfg.PMSSAPIBaseURL != "" {
+		pmssClient, err = pmss.NewClient(cfg.PMSSAPIBaseURL)
+		if err != nil {
+			return nil, err
+		}
+	}
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(mustSub(staticFiles, "static")))))
 	mux.Handle("GET /_ui/backend-status", templ.Handler(BackendStatus()))
+	mux.HandleFunc("GET /api-explorer", func(w http.ResponseWriter, r *http.Request) {
+		data := explorerData(cfg, authService, operations, r)
+		renderExplorer(w, data, http.StatusOK)
+	})
+	mux.HandleFunc("POST /api-explorer/execute", func(w http.ResponseWriter, r *http.Request) {
+		handleExplorerExecute(w, r, cfg, authService, pmssClient, operations, operationsByID)
+	})
 	mux.HandleFunc("GET /auth/login", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		location, err := authService.BeginLogin(r.Context())
@@ -92,8 +117,10 @@ func NewHandler(cfg config.Config) http.Handler {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		state := PageState{
-			AuthEnabled: authService.Enabled(),
-			Error:       r.URL.Query().Get("auth_error"),
+			AuthEnabled:    authService.Enabled(),
+			PMSSConfigured: cfg.PMSSAPIBaseURL != "",
+			PMSSAPIBaseURL: cfg.PMSSAPIBaseURL,
+			Error:          r.URL.Query().Get("auth_error"),
 		}
 		if session, _ := authService.Session(r); session != nil {
 			w.Header().Set("Cache-Control", "no-store")
@@ -110,7 +137,7 @@ func NewHandler(cfg config.Config) http.Handler {
 			http.Error(w, "page rendering failed", http.StatusInternalServerError)
 		}
 	})
-	return mux
+	return mux, nil
 }
 
 func mustSub(fsys fs.FS, dir string) fs.FS {

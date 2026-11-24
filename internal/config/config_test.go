@@ -4,6 +4,7 @@ import "testing"
 
 func TestLoadUsesDefaultAddress(t *testing.T) {
 	t.Setenv("HTTP_ADDR", "")
+	t.Setenv("PMSS_API_BASE_URL", "")
 	t.Setenv("OIDC_ISSUER_URL", "")
 	t.Setenv("OIDC_INTERNAL_URL", "")
 	t.Setenv("OIDC_CLIENT_ID", "")
@@ -36,6 +37,7 @@ func TestLoadRejectsInvalidAddress(t *testing.T) {
 }
 
 func TestLoadOIDCConfig(t *testing.T) {
+	t.Setenv("PMSS_API_BASE_URL", "")
 	t.Setenv("OIDC_ISSUER_URL", "http://127.0.0.1:8180/realms/pmss-test/")
 	t.Setenv("OIDC_INTERNAL_URL", "http://host.docker.internal:8180/realms/pmss-test")
 	t.Setenv("OIDC_CLIENT_ID", "tasmofleet-test")
@@ -57,6 +59,7 @@ func TestLoadOIDCConfig(t *testing.T) {
 }
 
 func TestLoadRejectsIncompleteOIDCConfig(t *testing.T) {
+	t.Setenv("PMSS_API_BASE_URL", "")
 	t.Setenv("OIDC_ISSUER_URL", "http://127.0.0.1:8180/realms/pmss-test")
 	t.Setenv("OIDC_INTERNAL_URL", "")
 	t.Setenv("OIDC_CLIENT_ID", "tasmofleet-test")
@@ -67,5 +70,49 @@ func TestLoadRejectsIncompleteOIDCConfig(t *testing.T) {
 
 	if _, err := Load(); err == nil {
 		t.Fatal("Load succeeded with incomplete OIDC settings")
+	}
+}
+
+func TestLoadPMSSAPIBaseURL(t *testing.T) {
+	t.Setenv("HTTP_ADDR", "")
+	t.Setenv("PMSS_API_BASE_URL", "https://pmss.example.org/api/")
+	t.Setenv("OIDC_ISSUER_URL", "")
+	t.Setenv("OIDC_INTERNAL_URL", "")
+	t.Setenv("OIDC_CLIENT_ID", "")
+	t.Setenv("OIDC_CLIENT_SECRET", "")
+	t.Setenv("OIDC_CALLBACK_URL", "")
+	t.Setenv("PMSS_AUDIENCE", "")
+	t.Setenv("OIDC_COOKIE_SECURE", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PMSSAPIBaseURL != "https://pmss.example.org/api" {
+		t.Fatalf("PMSSAPIBaseURL = %q", cfg.PMSSAPIBaseURL)
+	}
+}
+
+func TestLoadRejectsInsecurePMSSAPIBaseURL(t *testing.T) {
+	for _, value := range []string{
+		"http://pmss.example.org",
+		"ftp://pmss.example.org",
+		"https://user:pass@pmss.example.org",
+		"https://pmss.example.org?next=example",
+	} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("HTTP_ADDR", "")
+			t.Setenv("PMSS_API_BASE_URL", value)
+			t.Setenv("OIDC_ISSUER_URL", "")
+			t.Setenv("OIDC_INTERNAL_URL", "")
+			t.Setenv("OIDC_CLIENT_ID", "")
+			t.Setenv("OIDC_CLIENT_SECRET", "")
+			t.Setenv("OIDC_CALLBACK_URL", "")
+			t.Setenv("PMSS_AUDIENCE", "")
+			t.Setenv("OIDC_COOKIE_SECURE", "")
+			if _, err := Load(); err == nil {
+				t.Fatal("Load succeeded with an invalid PMSS_API_BASE_URL")
+			}
+		})
 	}
 }

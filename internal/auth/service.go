@@ -226,6 +226,12 @@ func (s *Service) PMSSAccessToken(r *http.Request) (string, bool) {
 	return session.exchangedToken, true
 }
 
+func (s *Service) ValidateCSRF(r *http.Request, token string) bool {
+	session, _ := s.Session(r)
+	return session != nil && token != "" &&
+		subtle.ConstantTimeCompare([]byte(session.CSRFToken), []byte(token)) == 1
+}
+
 func (s *Service) Logout(sessionID, csrfToken string) (string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
