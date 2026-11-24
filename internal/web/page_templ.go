@@ -9,7 +9,7 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func Page() templ.Component {
+func Page(state PageState) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -26,7 +26,143 @@ func Page() templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"de\" data-theme=\"light\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"light dark\"><title>PMSS API Tester</title><link rel=\"preload\" href=\"/static/geist-latin.woff2\" as=\"font\" type=\"font/woff2\" crossorigin><link rel=\"preload\" href=\"/static/geist-mono-latin.woff2\" as=\"font\" type=\"font/woff2\" crossorigin><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"/static/htmx.min.js\" defer></script><script src=\"/static/app.js\" defer></script></head><body><div class=\"app-shell\"><aside class=\"sidebar\" aria-label=\"Hauptnavigation\"><a class=\"brand\" href=\"/\" aria-label=\"PMSS API Tester Startseite\"><span class=\"brand-mark\" aria-hidden=\"true\">P</span> <span class=\"brand-copy\"><strong>PMSS</strong><small>API Tester</small></span></a><div class=\"nav-caption\">WORKSPACE</div><nav><a class=\"nav-item active\" href=\"/\" aria-current=\"page\"><span class=\"nav-icon\" aria-hidden=\"true\">▦</span><span>Übersicht</span></a><div class=\"nav-item nav-muted\" aria-disabled=\"true\"><span class=\"nav-icon\" aria-hidden=\"true\">⌘</span><span>API Explorer</span><span class=\"nav-soon\">Demnächst</span></div><div class=\"nav-item nav-muted\" aria-disabled=\"true\"><span class=\"nav-icon\" aria-hidden=\"true\">✓</span><span>Prüfungen</span><span class=\"nav-soon\">Demnächst</span></div></nav><div class=\"sidebar-bottom\"><div class=\"sidebar-rule\"></div><div class=\"version-label\">VERSION 1 · READ-ONLY</div></div></aside><main class=\"main-content\"><header class=\"topbar\"><div class=\"breadcrumbs\"><span>PMSS API Tester</span><span class=\"crumb-separator\">/</span><strong>Übersicht</strong></div><button class=\"theme-toggle\" type=\"button\" aria-label=\"Farbschema umschalten\" title=\"Farbschema umschalten\"><span class=\"theme-light\" aria-hidden=\"true\">☼</span><span class=\"theme-dark\" aria-hidden=\"true\">◐</span></button></header><div class=\"page-body\"><div class=\"page-heading\"><div><div class=\"eyebrow\">MQTT SECURITY SERVICE</div><h1>Übersicht</h1><p class=\"subtitle\">API-Verbindung und Spezifikationsstatus auf einen Blick.</p></div><div class=\"readonly-badge\"><span class=\"lock-icon\" aria-hidden=\"true\">▣</span> Read-only</div></div><section class=\"status-grid\" aria-label=\"Systemstatus\"><article class=\"status-card\"><div class=\"card-topline\"><span>Tester-Status</span><span class=\"card-symbol green\" aria-hidden=\"true\">●</span></div><div class=\"card-value\" hx-get=\"/_ui/backend-status\" hx-trigger=\"load\" hx-swap=\"innerHTML\"><span class=\"loading-dot\"></span> Wird geprüft</div><div class=\"card-note\">Lokaler Anwendungsstatus</div></article><article class=\"status-card\"><div class=\"card-topline\"><span>Zielsystem</span><span class=\"card-symbol blue\" aria-hidden=\"true\">◎</span></div><div class=\"card-value\">Noch nicht konfiguriert</div><div class=\"card-note\">PMSS-Verbindung folgt in Phase 3</div></article><article class=\"status-card\"><div class=\"card-topline\"><span>API-Spezifikation</span><span class=\"card-symbol blue\" aria-hidden=\"true\">⌗</span></div><div class=\"card-value\">Version 1.0</div><div class=\"card-note\">OpenAPI 3.2.1 · beim Start validiert</div></article></section><section class=\"welcome-card\"><div class=\"welcome-copy\"><div class=\"eyebrow\">PROJEKTGRUNDLAGE</div><h2>Bereit für den nächsten Schritt</h2><p>Die Anwendung läuft, ihre API-Spezifikation ist geprüft und die Oberfläche ist vorbereitet. Als Nächstes folgt die sichere Anmeldung über Keycloak.</p></div><div class=\"welcome-art\" aria-hidden=\"true\"><div class=\"art-ring ring-one\"></div><div class=\"art-ring ring-two\"></div><div class=\"art-center\"><span>API</span><i>✓</i></div><div class=\"art-node node-one\"></div><div class=\"art-node node-two\"></div><div class=\"art-node node-three\"></div></div></section><section class=\"info-panel\"><div class=\"panel-heading\"><div><div class=\"eyebrow\">SICHERHEITSMODUS</div><h2>Strikt lesend</h2></div><span class=\"shield-icon\" aria-hidden=\"true\">◈</span></div><p>Version 1 führt ausschließlich lesende API-Aufrufe aus. Schreibende Operationen werden serverseitig gesperrt und sind nicht Teil dieses Prototyps.</p><div class=\"panel-footer\"><span class=\"status-indicator\"></span> Schreiboperationen sind deaktiviert</div></section><footer class=\"page-footer\">PMSS API Tester <span>·</span> Version 1 <span>·</span> TasmoFleet Produktfamilie</footer></div></main></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"de\" data-theme=\"light\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"light dark\"><title>PMSS API Tester</title><link rel=\"preload\" href=\"/static/geist-latin.woff2\" as=\"font\" type=\"font/woff2\" crossorigin><link rel=\"preload\" href=\"/static/geist-mono-latin.woff2\" as=\"font\" type=\"font/woff2\" crossorigin><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"/static/htmx.min.js\" defer></script><script src=\"/static/app.js\" defer></script></head><body><div class=\"app-shell\"><aside class=\"sidebar\" aria-label=\"Hauptnavigation\"><a class=\"brand\" href=\"/\" aria-label=\"PMSS API Tester Startseite\"><span class=\"brand-mark\" aria-hidden=\"true\">P</span> <span class=\"brand-copy\"><strong>PMSS</strong><small>API Tester</small></span></a><div class=\"nav-caption\">WORKSPACE</div><nav><a class=\"nav-item active\" href=\"/\" aria-current=\"page\"><span class=\"nav-icon\" aria-hidden=\"true\">▦</span><span>Übersicht</span></a><div class=\"nav-item nav-muted\" aria-disabled=\"true\"><span class=\"nav-icon\" aria-hidden=\"true\">⌘</span><span>API Explorer</span><span class=\"nav-soon\">Demnächst</span></div><div class=\"nav-item nav-muted\" aria-disabled=\"true\"><span class=\"nav-icon\" aria-hidden=\"true\">✓</span><span>Prüfungen</span><span class=\"nav-soon\">Demnächst</span></div></nav><div class=\"sidebar-bottom\"><div class=\"sidebar-rule\"></div><div class=\"version-label\">VERSION 1 · READ-ONLY</div></div></aside><main class=\"main-content\"><header class=\"topbar\"><div class=\"breadcrumbs\"><span>PMSS API Tester</span><span class=\"crumb-separator\">/</span><strong>Übersicht</strong></div><div class=\"topbar-actions\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if state.AuthEnabled {
+			if state.Authenticated {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<span class=\"user-label\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var2 string
+				templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(state.Username)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `page.templ`, Line: 47, Col: 50}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span><form method=\"post\" action=\"/auth/logout\"><input type=\"hidden\" name=\"csrf_token\" value=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var3 string
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templruntime.NewAttributeExpression(state.CSRFToken).Resolve(ctx)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `page.templ`, Line: 49, Col: 72}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"> <button class=\"logout-button\" type=\"submit\">Abmelden</button></form>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<a class=\"login-button\" href=\"/auth/login\">Mit Keycloak anmelden</a> ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<button class=\"theme-toggle\" type=\"button\" aria-label=\"Farbschema umschalten\" title=\"Farbschema umschalten\"><span class=\"theme-light\" aria-hidden=\"true\">☼</span><span class=\"theme-dark\" aria-hidden=\"true\">◐</span></button></div></header><div class=\"page-body\"><div class=\"page-heading\"><div><div class=\"eyebrow\">MQTT SECURITY SERVICE</div><h1>Übersicht</h1><p class=\"subtitle\">API-Verbindung und Spezifikationsstatus auf einen Blick.</p></div><div class=\"readonly-badge\"><span class=\"lock-icon\" aria-hidden=\"true\">▣</span> Read-only</div></div><section class=\"status-grid\" aria-label=\"Systemstatus\"><article class=\"status-card\"><div class=\"card-topline\"><span>Tester-Status</span><span class=\"card-symbol green\" aria-hidden=\"true\">●</span></div><div class=\"card-value\" hx-get=\"/_ui/backend-status\" hx-trigger=\"load\" hx-swap=\"innerHTML\"><span class=\"loading-dot\"></span> Wird geprüft</div><div class=\"card-note\">Lokaler Anwendungsstatus</div></article><article class=\"status-card\"><div class=\"card-topline\"><span>Zielsystem</span><span class=\"card-symbol blue\" aria-hidden=\"true\">◎</span></div><div class=\"card-value\">Noch nicht konfiguriert</div><div class=\"card-note\">PMSS-Verbindung folgt in Phase 3</div></article><article class=\"status-card\"><div class=\"card-topline\"><span>API-Spezifikation</span><span class=\"card-symbol blue\" aria-hidden=\"true\">⌗</span></div><div class=\"card-value\">Version 1.0</div><div class=\"card-note\">OpenAPI 3.2.1 · beim Start validiert</div></article></section>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if state.Error != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"auth-message auth-error\" role=\"alert\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(state.Error)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `page.templ`, Line: 90, Col: 70}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		if !state.AuthEnabled {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<section class=\"auth-panel\"><div class=\"eyebrow\">KEYCLOAK-ANMELDUNG</div><h2>OIDC ist noch nicht konfiguriert</h2><p>Hinterlege Issuer, Client-ID und Client-Secret für den Integration-Keycloak, um die Anmeldung und den serverseitigen Token-Austausch zu aktivieren.</p></section>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else if state.Authenticated {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<section class=\"auth-panel\"><div class=\"eyebrow\">ANGEMELDETER BENUTZER</div><h2>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(state.Username)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `page.templ`, Line: 101, Col: 28}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</h2><p>Für PMSS angeforderte Berechtigung: <code>read</code>. Tatsächlich zurückgegebene Scopes: <code>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var6 string
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(state.ScopeLabel)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `page.templ`, Line: 102, Col: 128}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</code>.</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if state.HasReadScope {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"auth-status auth-status-good\"><span class=\"status-indicator\"></span> Leseberechtigung vorhanden · Sitzung gültig bis ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var7 string
+				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(state.ExpiresAt)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `page.templ`, Line: 104, Col: 157}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"auth-status auth-status-blocked\"><span aria-hidden=\"true\">!</span> BLOCKED · Der Token-Austausch hat keinen <code>read</code>-Scope geliefert.</div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</section>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<section class=\"auth-panel\"><div class=\"eyebrow\">KEYCLOAK-ANMELDUNG</div><h2>Mit deinem Benutzerkonto anmelden</h2><p>Der Login verwendet Authorization Code Flow mit PKCE. Tokens bleiben ausschließlich serverseitig; für PMSS wird nur der Scope <code>read</code> angefordert.</p><a class=\"login-button\" href=\"/auth/login\">Bei Keycloak anmelden</a></section>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<section class=\"welcome-card\"><div class=\"welcome-copy\"><div class=\"eyebrow\">PROJEKTGRUNDLAGE</div><h2>Sichere Anmeldung über Keycloak</h2><p>Die Anmeldung erfolgt serverseitig über PKCE. PMSS-Zugriffstokens werden für den konfigurierten Empfänger ausgetauscht und verbleiben ausschließlich im Backend.</p></div><div class=\"welcome-art\" aria-hidden=\"true\"><div class=\"art-ring ring-one\"></div><div class=\"art-ring ring-two\"></div><div class=\"art-center\"><span>API</span><i>✓</i></div><div class=\"art-node node-one\"></div><div class=\"art-node node-two\"></div><div class=\"art-node node-three\"></div></div></section><section class=\"info-panel\"><div class=\"panel-heading\"><div><div class=\"eyebrow\">SICHERHEITSMODUS</div><h2>Strikt lesend</h2></div><span class=\"shield-icon\" aria-hidden=\"true\">◈</span></div><p>Version 1 führt ausschließlich lesende API-Aufrufe aus. Schreibende Operationen werden serverseitig gesperrt und sind nicht Teil dieses Prototyps.</p><div class=\"panel-footer\"><span class=\"status-indicator\"></span> Schreiboperationen sind deaktiviert</div></section><footer class=\"page-footer\">PMSS API Tester <span>·</span> Version 1 <span>·</span> TasmoFleet Produktfamilie</footer></div></main></div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -51,7 +187,7 @@ func BackendStatus() templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<span class=\"inline-status\"><span class=\"status-indicator\"></span> Bereit</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<span class=\"inline-status\"><span class=\"status-indicator\"></span> Bereit</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

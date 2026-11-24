@@ -1,6 +1,6 @@
 package web
 
-templ Page() {
+templ Page(state PageState) {
 	<!DOCTYPE html>
 	<html lang="de" data-theme="light">
 		<head>
@@ -41,9 +41,22 @@ templ Page() {
 				<main class="main-content">
 					<header class="topbar">
 						<div class="breadcrumbs"><span>PMSS API Tester</span><span class="crumb-separator">/</span><strong>Übersicht</strong></div>
-						<button class="theme-toggle" type="button" aria-label="Farbschema umschalten" title="Farbschema umschalten">
-							<span class="theme-light" aria-hidden="true">☼</span><span class="theme-dark" aria-hidden="true">◐</span>
-						</button>
+						<div class="topbar-actions">
+							if state.AuthEnabled {
+								if state.Authenticated {
+									<span class="user-label">{ state.Username }</span>
+									<form method="post" action="/auth/logout">
+										<input type="hidden" name="csrf_token" value={ state.CSRFToken }/>
+										<button class="logout-button" type="submit">Abmelden</button>
+									</form>
+								} else {
+									<a class="login-button" href="/auth/login">Mit Keycloak anmelden</a>
+								}
+							}
+							<button class="theme-toggle" type="button" aria-label="Farbschema umschalten" title="Farbschema umschalten">
+								<span class="theme-light" aria-hidden="true">☼</span><span class="theme-dark" aria-hidden="true">◐</span>
+							</button>
+						</div>
 					</header>
 					<div class="page-body">
 						<div class="page-heading">
@@ -73,11 +86,39 @@ templ Page() {
 								<div class="card-note">OpenAPI 3.2.1 · beim Start validiert</div>
 							</article>
 						</section>
+						if state.Error != "" {
+							<div class="auth-message auth-error" role="alert">{ state.Error }</div>
+						}
+						if !state.AuthEnabled {
+							<section class="auth-panel">
+								<div class="eyebrow">KEYCLOAK-ANMELDUNG</div>
+								<h2>OIDC ist noch nicht konfiguriert</h2>
+								<p>Hinterlege Issuer, Client-ID und Client-Secret für den Integration-Keycloak, um die Anmeldung und den serverseitigen Token-Austausch zu aktivieren.</p>
+							</section>
+						} else if state.Authenticated {
+							<section class="auth-panel">
+								<div class="eyebrow">ANGEMELDETER BENUTZER</div>
+								<h2>{ state.Username }</h2>
+								<p>Für PMSS angeforderte Berechtigung: <code>read</code>. Tatsächlich zurückgegebene Scopes: <code>{ state.ScopeLabel }</code>.</p>
+								if state.HasReadScope {
+									<div class="auth-status auth-status-good"><span class="status-indicator"></span> Leseberechtigung vorhanden · Sitzung gültig bis { state.ExpiresAt }</div>
+								} else {
+									<div class="auth-status auth-status-blocked"><span aria-hidden="true">!</span> BLOCKED · Der Token-Austausch hat keinen <code>read</code>-Scope geliefert.</div>
+								}
+							</section>
+						} else {
+							<section class="auth-panel">
+								<div class="eyebrow">KEYCLOAK-ANMELDUNG</div>
+								<h2>Mit deinem Benutzerkonto anmelden</h2>
+								<p>Der Login verwendet Authorization Code Flow mit PKCE. Tokens bleiben ausschließlich serverseitig; für PMSS wird nur der Scope <code>read</code> angefordert.</p>
+								<a class="login-button" href="/auth/login">Bei Keycloak anmelden</a>
+							</section>
+						}
 						<section class="welcome-card">
 							<div class="welcome-copy">
 								<div class="eyebrow">PROJEKTGRUNDLAGE</div>
-								<h2>Bereit für den nächsten Schritt</h2>
-								<p>Die Anwendung läuft, ihre API-Spezifikation ist geprüft und die Oberfläche ist vorbereitet. Als Nächstes folgt die sichere Anmeldung über Keycloak.</p>
+								<h2>Sichere Anmeldung über Keycloak</h2>
+								<p>Die Anmeldung erfolgt serverseitig über PKCE. PMSS-Zugriffstokens werden für den konfigurierten Empfänger ausgetauscht und verbleiben ausschließlich im Backend.</p>
 							</div>
 							<div class="welcome-art" aria-hidden="true">
 								<div class="art-ring ring-one"></div><div class="art-ring ring-two"></div>

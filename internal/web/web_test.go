@@ -6,11 +6,13 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/noschvie/pmss-api-tester/internal/config"
 )
 
 func TestHealthEndpoint(t *testing.T) {
 	response := httptest.NewRecorder()
-	NewHandler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	NewHandler(config.Config{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
@@ -24,7 +26,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestHomePageAndEmbeddedAssets(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler(config.Config{})
 
 	page := httptest.NewRecorder()
 	handler.ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -65,8 +67,18 @@ func TestHomePageAndEmbeddedAssets(t *testing.T) {
 
 func TestUnknownRouteReturnsNotFound(t *testing.T) {
 	response := httptest.NewRecorder()
-	NewHandler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/missing", nil))
+	NewHandler(config.Config{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/missing", nil))
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
+	}
+}
+
+func TestLogoutRequiresSessionAndCSRFToken(t *testing.T) {
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/auth/logout", strings.NewReader("csrf_token=forged"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	NewHandler(config.Config{}).ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusForbidden)
 	}
 }

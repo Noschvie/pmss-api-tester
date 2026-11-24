@@ -4,8 +4,13 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
+	"net/url"
+	"strings"
+	"time"
 
 	"github.com/a-h/templ"
+	"github.com/noschvie/pmss-api-tester/internal/auth"
+	"github.com/noschvie/pmss-api-tester/internal/config"
 )
 
 //go:generate go run github.com/a-h/templ/cmd/templ@v0.3.1118 generate
@@ -13,10 +18,69 @@ import (
 //go:embed static/*
 var staticFiles embed.FS
 
-func NewHandler() http.Handler {
+func NewHandler(cfg config.Config) http.Handler {
 	mux := http.NewServeMux()
+	authService := auth.New(cfg.OIDC)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(mustSub(staticFiles, "static")))))
 	mux.Handle("GET /_ui/backend-status", templ.Handler(BackendStatus()))
+	mux.HandleFunc("GET /auth/login", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		location, err := authService.BeginLogin(r.Context())
+		if err != nil {
+			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Anmeldung konnte nicht gestartet werden: "+err.Error()), http.StatusSeeOther)
+			return
+		}
+		stateURL, err := url.Parse(location)
+		if err != nil {
+			http.Error(w, "OIDC-Anmelde-URL ist ungültig", http.StatusInternalServerError)
+			return
+		}
+		http.SetCookie(w, authService.StateCookie(stateURL.Query().Get("state")))
+		http.Redirect(w, r, location, http.StatusFound)
+	})
+	mux.HandleFunc("GET /auth/callback", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		http.SetCookie(w, authService.ClearStateCookie())
+		if r.URL.Query().Get("error") != "" {
+			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Keycloak hat die Anmeldung abgelehnt."), http.StatusSeeOther)
+			return
+		}
+		state := r.URL.Query().Get("state")
+		if !authService.StateCookieMatches(r, state) {
+			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Anmeldestatus ist ungültig oder abgelaufen."), http.StatusSeeOther)
+			return
+		}
+		sessionID, session, err := authService.CompleteLogin(r.Context(), state, r.URL.Query().Get("code"))
+		if err != nil {
+			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Anmeldung fehlgeschlagen: "+err.Error()), http.StatusSeeOther)
+			return
+		}
+		http.SetCookie(w, authService.Cookie(sessionID, session.ExpiresAt))
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	})
+	mux.HandleFunc("POST /auth/logout", func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 4096)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Ungültige Abmeldeanfrage", http.StatusBadRequest)
+			return
+		}
+		_, sessionID := authService.Session(r)
+		idToken, ok := authService.Logout(sessionID, r.PostForm.Get("csrf_token"))
+		if !ok {
+			http.Error(w, "Ungültige CSRF-Prüfung", http.StatusForbidden)
+			return
+		}
+		http.SetCookie(w, authService.ClearCookie())
+		redirectURL, err := url.Parse(cfg.OIDC.CallbackURL)
+		if err != nil {
+			http.Error(w, "Abmelde-URL ist ungültig konfiguriert", http.StatusInternalServerError)
+			return
+		}
+		redirectURL.Path = "/"
+		redirectURL.RawPath = ""
+		http.Redirect(w, r, authService.EndSessionURL(idToken, redirectURL.String()), http.StatusSeeOther)
+	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = w.Write([]byte("{\"status\":\"ok\"}\n"))
@@ -27,7 +91,22 @@ func NewHandler() http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := Page().Render(r.Context(), w); err != nil {
+		state := PageState{
+			AuthEnabled: authService.Enabled(),
+			Error:       r.URL.Query().Get("auth_error"),
+		}
+		if session, _ := authService.Session(r); session != nil {
+			w.Header().Set("Cache-Control", "no-store")
+			state.Authenticated = true
+			state.Username = session.Username
+			state.ScopeLabel = strings.Join(session.Scopes, " ")
+			state.HasReadScope = session.HasReadScope
+			state.CSRFToken = session.CSRFToken
+			state.ExpiresAt = session.ExpiresAt.Format(time.RFC3339)
+		} else if _, err := r.Cookie("pmss_session"); err == nil {
+			http.SetCookie(w, authService.ClearCookie())
+		}
+		if err := Page(state).Render(r.Context(), w); err != nil {
 			http.Error(w, "page rendering failed", http.StatusInternalServerError)
 		}
 	})

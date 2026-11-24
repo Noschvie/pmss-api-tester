@@ -37,7 +37,7 @@ func run() error {
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           web.NewHandler(),
+		Handler:           web.NewHandler(cfg),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
