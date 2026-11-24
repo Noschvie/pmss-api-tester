@@ -1,305 +1,303 @@
-# PMSS API Tester – Planung und Umsetzung
+# PMSS API Tester – Planning and Implementation
 
-**Dokumentstatus:** Umsetzungsroadmap für Version 1
+**Document status:** Implementation roadmap for version 1
 **Version:** 0.2
-**Stand:** 24.11.2026
+**Date:** 24 November 2026
 
-Die Architekturentscheidungen richten sich nach `docs/design/pmss-api-tester-design-v0.3.md`. Bei Abweichungen ist das Design maßgeblich; die normative API-Grundlage bleibt die MQTT Security Service API-Spezifikation.
+The architectural decisions follow `docs/design/pmss-api-tester-design-v0.3.md`. In case of deviations, the design document is authoritative; the MQTT Security Service API specification remains the normative API basis.
 
-## 1. Ziel
+## 1. Objective
 
-Der PMSS API Tester ist ein generisches Werkzeug zum Erkunden, Prüfen und Testen von Implementierungen der **MQTT Security Service API**.
+The PMSS API Tester is a generic tool for exploring, checking, and testing implementations of the **MQTT Security Service API**.
 
-Die normative Grundlage ist `docs/mqtt-security-service-api-v1.0.md`. Die Datei `api/openapi.yaml` stellt die maschinenlesbare Beschreibung derselben API bereit. Die Markdown-Spezifikation bleibt maßgeblich, wenn sich Beschreibungen widersprechen. Beide Dateien liegen im Tester-Repository; die OpenAPI-Datei wird fest eingebettet und nicht zur Laufzeit von einer externen URL geladen.
+The normative basis is `docs/mqtt-security-service-api-v1.0.md`. The file `api/openapi.yaml` provides the machine-readable description of the same API. The Markdown specification remains authoritative if descriptions conflict. Both files are part of the tester repository; the OpenAPI file is embedded and is not loaded from an external URL at runtime.
 
-Der Phylax MQTT Security Service (PMSS) ist zunächst das erste Testziel. Die Architektur des Testers soll jedoch nicht von PMSS-internen Implementierungsdetails abhängen.
+The Phylax MQTT Security Service (PMSS) is the first test target. However, the tester's architecture must not depend on PMSS-internal implementation details.
 
-### Nicht-Ziele für den ersten Prototyp
+### Non-goals for the First Prototype
 
-- Kein MQTT-Client und keine direkte MQTT-Kommunikation
-- Keine Verwaltung des Broker-Dynamic-Security-Zustands durch den Tester
-- Keine produktive Administrationsoberfläche
-- Keine Datenbank oder dauerhafte Testhistorie
-- Keine Lasttests oder CI/CD-Integration im ersten Schritt
+- No MQTT client or direct MQTT communication
+- No management of the broker Dynamic Security state by the tester
+- No production administration interface
+- No database or persistent test history
+- No load tests or CI/CD integration in the first step
 
-## 2. Grundlegende Architekturentscheidungen
+## 2. Core Architectural Decisions
 
-| Bereich | Festlegung |
+| Area | Decision |
 |---|---|
-| Backend | Go mit `net/http` / `ServeMux` |
-| UI | `templ`, HTMX 2.x und eingebettete statische Assets |
-| UI-Stil | Gleiche technische Basis und Gestaltungskonventionen wie TasmoFleet |
-| Auslieferung | Ein Docker-Container, Multi-Stage-Build |
-| Persistenz | Keine Datenbank; Laufzeitdaten und Testergebnisse zunächst im Arbeitsspeicher |
-| API-Beschreibung | OpenAPI 3.2.1 als maschinenlesbare Grundlage; normative Markdown-Spezifikation hat Vorrang |
-| Testziel | Konfigurierbare HTTPS-Basis-URL einer MQTT Security Service API, zunächst PMSS |
+| Backend | Go with `net/http` / `ServeMux` |
+| UI | `templ`, HTMX 2.x, and embedded static assets |
+| UI style | Same technical basis and design conventions as TasmoFleet |
+| Delivery | One Docker container, multi-stage build |
+| Persistence | No database; runtime data and test results initially kept in memory |
+| API description | OpenAPI 3.2.1 as the machine-readable basis; normative Markdown specification takes precedence |
+| Test target | Configurable HTTPS base URL of an MQTT Security Service API, initially PMSS |
 
-Der Tester soll sich optisch und technisch in die TasmoFleet-Produktfamilie einfügen. React und TypeScript sind für dieses Vorhaben nicht vorgesehen.
+The tester should fit visually and technically into the TasmoFleet product family. React and TypeScript are not planned for this project.
 
-## 3. Authentifizierung und Autorisierung
+## 3. Authentication and Authorization
 
-### 3.1 Anmeldung am Tester
+### 3.1 Login to the Tester
 
-- Anmeldung über den bestehenden Keycloak-Realm `Tasmofleet`.
-- Der Tester erhält eine eigene Keycloak-Client-Konfiguration.
-- Für den Browser-Login wird Authorization Code Flow mit PKCE verwendet.
-- Der Tester arbeitet als Backend-for-Frontend (BFF).
-- Tokens verbleiben serverseitig; der Browser erhält nur eine sichere Session-Cookie.
-- Client Secret und Tokens dürfen nicht an den Browser ausgeliefert werden.
+- Login through the existing `Tasmofleet` Keycloak realm.
+- The tester receives its own Keycloak client configuration.
+- Browser login uses the Authorization Code Flow with PKCE.
+- The tester operates as a backend-for-frontend (BFF).
+- Tokens remain server-side; the browser receives only a secure session cookie.
+- Client secrets and tokens must not be delivered to the browser.
 
-### 3.2 Zugriff auf den MQTT Security Service
+### 3.2 Access to the MQTT Security Service
 
-Für Aufrufe an den MQTT Security Service wird die Identität des angemeldeten Benutzers beibehalten.
+The identity of the logged-in user is preserved for calls to the MQTT Security Service.
 
-Der Tester verwendet daher **keinen Service Account als Ersatz für den Benutzer**. Stattdessen führt das Backend einen serverseitigen OAuth 2.0 Token Exchange nach RFC 8693 durch:
+The tester therefore uses **no service account as a substitute for the user**. Instead, the backend performs a server-side OAuth 2.0 token exchange according to RFC 8693:
 
-1. Der Benutzer meldet sich am Tester über Keycloak an.
-2. Das Backend verwendet das Access Token des angemeldeten Benutzers als `subject_token`.
-3. Das Backend fordert beim Token Exchange ein Access Token für die Audience des Zielsystems an. Für PMSS ist dies `phylax-mqtt-security-service`.
-4. Version 1 fordert ausschließlich den Scope `read` an.
-5. Das erhaltene, benutzerbezogene Token wird serverseitig für die lesenden API-Aufrufe verwendet. Ein Service-Account-Token ersetzt nicht die Benutzeridentität.
+1. The user logs in to the tester through Keycloak.
+2. The backend uses the logged-in user's access token as the `subject_token`.
+3. During the token exchange, the backend requests an access token for the target system's audience. For PMSS, this is `phylax-mqtt-security-service`.
+4. Version 1 requests only the `read` scope.
+5. The resulting user-specific token is used server-side for read-only API calls. A service-account token does not replace the user's identity.
 
-Für weitere konforme Zielsysteme muss die Audience zielsystemspezifisch konfigurierbar sein. Der Client wird gegenüber Keycloak serverseitig authentifiziert.
+For additional conforming target systems, the audience must be configurable per target system. The client is authenticated with Keycloak server-side.
 
-### 3.3 Rechte und UI-Verhalten
+### 3.3 Permissions and UI Behavior
 
-- `read` ist Voraussetzung für lesende API-Aufrufe.
-- Die tatsächlich im Token enthaltenen Scopes sind maßgeblich.
-- Fehlt `read`, werden geschützte Prüfungen als `BLOCKED` ausgewiesen und nicht als technischer Fehler verschleiert.
-- Version 1 fordert `write` nicht an und führt keine mutierenden API-Aufrufe aus.
+- `read` is required for read-only API calls.
+- The scopes actually contained in the token are authoritative.
+- If `read` is missing, protected checks are reported as `BLOCKED` and not obscured as a technical error.
+- Version 1 does not request `write` and performs no mutating API calls.
 
-## 4. Umgang mit der API-Spezifikation
+## 4. Handling the API Specification
 
-### 4.1 Normative Quelle und OpenAPI
+### 4.1 Normative Source and OpenAPI
 
-Im Repository des Testers liegen die beiden API-Artefakte:
+The tester repository contains the two API artifacts:
 
-- `docs/mqtt-security-service-api-v1.0.md` – normative Spezifikation
-- `api/openapi.yaml` – maschinenlesbare OpenAPI-Beschreibung
+- `docs/mqtt-security-service-api-v1.0.md` – normative specification
+- `api/openapi.yaml` – machine-readable OpenAPI description
 
-Die OpenAPI-Datei wird in die Anwendung eingebettet und beim Start validiert. Bei einer fehlerhaften oder inkompatiblen Spezifikation startet die Anwendung nicht unvollständig. OpenAPI dient der Darstellung von Operationen, GET-Parametern und Schemas. Normative Verhaltensregeln, die dort nicht vollständig ausgedrückt sind, werden anhand der Markdown-Spezifikation implementiert bzw. getestet.
+The OpenAPI file is embedded in the application and validated at startup. If the specification is invalid or incompatible, the application does not start partially. OpenAPI is used to describe operations, GET parameters, and schemas. Normative behavior that cannot be fully expressed there is implemented and tested against the Markdown specification.
 
-### 4.2 Core API und PMSS Extra
+### 4.2 Core API and PMSS Extra
 
-Die Spezifikation unterscheidet zwischen:
+The specification distinguishes between:
 
-- **Core API:** Bestandteil der standardisierten Schnittstelle und Grundlage der Konformitätsprüfung.
-- **PMSS Extra:** Implementierungsspezifische Erweiterungen, gekennzeichnet durch den Tag `pmss-extra` und `x-pmss-extra: true`.
+- **Core API:** part of the standardized interface and basis for conformance testing.
+- **PMSS Extra:** implementation-specific extensions marked with the `pmss-extra` tag and `x-pmss-extra: true`.
 
-Diese Bereiche müssen im Tester getrennt dargestellt und ausgewertet werden. Ein nicht unterstützter PMSS-Extra-Endpunkt darf nicht als Fehler der Core-Konformität gewertet werden.
+These areas must be displayed and evaluated separately in the tester. An unsupported PMSS Extra endpoint must not be counted as a Core conformance error.
 
-### 4.3 Versionsprüfung
+### 4.3 Version Checks
 
-Der Tester zeigt mindestens an:
+The tester displays at least:
 
-- API-Version
-- Spezifikationsversion
-- Zielsystem / Implementierung
-- Erreichbarkeit und Authentifizierungsstatus
+- API version
+- specification version
+- target system / implementation
+- reachability and authentication status
 
-Abweichungen zwischen erwarteter und gemeldeter Version werden sichtbar ausgewiesen.
+Deviations between expected and reported versions are visibly indicated.
 
-## 5. Funktionsumfang des Testers
+## 5. Tester Features
 
 ### 5.1 API Explorer
 
-Der API Explorer ermöglicht es, API-Operationen gezielt aufzurufen und die Ergebnisse zu untersuchen.
+The API Explorer allows users to call API operations selectively and inspect the results.
 
-Anzuzeigen sind mindestens:
+At minimum, it displays:
 
-- HTTP-Methode und Pfad
-- GET-Parameter und Request-/Response-Schemas
-- verwendete Authentifizierung und Scopes
-- HTTP-Status
-- Response-Header
-- Response-Body
-- Laufzeit des Aufrufs
+- HTTP method and path
+- GET parameters and request/response schemas
+- authentication and scopes used
+- HTTP status
+- response headers
+- response body
+- call duration
 
-Version 1 führt ausschließlich GET-Aufrufe aus. Andere HTTP-Methoden müssen serverseitig abgewiesen und als `BLOCKED` ausgewiesen werden; ein bloßes Verbergen oder Deaktivieren in der UI genügt nicht. Relevante Response-Header wie `ETag`, `Content-Type` und Cache-Control werden angezeigt. `If-Match` wird in Version 1 nicht zum Ausführen von Änderungen verwendet.
+Version 1 performs GET calls exclusively. Other HTTP methods must be rejected server-side and reported as `BLOCKED`; merely hiding or disabling them in the UI is insufficient. Relevant response headers such as `ETag`, `Content-Type`, and Cache-Control are displayed. `If-Match` is not used to perform changes in version 1.
 
-### 5.2 Automatisierte Prüfungen
+### 5.2 Automated Checks
 
-Der Tester führt definierte Prüfungen aus und bewertet sie mit:
+The tester executes defined checks and evaluates them as:
 
-- `PASS` – Prüfung erfolgreich
-- `FAIL` – Prüfung fehlgeschlagen
-- `NOT TESTED` – Prüfung nicht ausgeführt
-- `BLOCKED` – Prüfung konnte wegen einer Voraussetzung oder fehlenden Berechtigung nicht ausgeführt werden
+- `PASS` – check successful
+- `FAIL` – check failed
+- `NOT TESTED` – check not executed
+- `BLOCKED` – check could not be executed because of a prerequisite or missing permission
 
-Core-Konformität und PMSS-Extras werden getrennt ausgewertet.
+Core conformance and PMSS Extras are evaluated separately.
 
-### 5.3 Fehlerbehandlung
+### 5.3 Error Handling
 
-Die Prüfung berücksichtigt insbesondere:
+The checks specifically account for:
 
-- Fehlerantworten nach RFC 9457 (`application/problem+json`)
-- normative Auswertung von HTTP-Status und `code`
-- unbekannte Fehlercodes innerhalb derselben API-Hauptversion nicht automatisch als Fehler werten, wenn der Status das erwartete Verhalten erfüllt
-- Unterscheidung zwischen `503 broker_unavailable` und `504 broker_timeout`
+- error responses according to RFC 9457 (`application/problem+json`)
+- normative evaluation of HTTP status and `code`
+- unknown error codes within the same major API version are not automatically treated as errors when the status represents the expected behavior
+- distinction between `503 broker_unavailable` and `504 broker_timeout`
 
-`503 broker_unavailable` und `504 broker_timeout` werden unterscheidbar dargestellt. Version 1 wiederholt keine Aufrufe automatisch. Für spätere mutierende Tests gilt bei `504 broker_timeout`: Zustand erneut lesen, niemals blind wiederholen.
+`503 broker_unavailable` and `504 broker_timeout` are displayed distinctly. Version 1 does not retry calls automatically. For later mutating tests, a `504 broker_timeout` requires reading the state again; never retry blindly.
 
-## 6. Sicherheits- und Testmodi
+## 6. Security and Test Modes
 
-### 6.1 Version 1 – strikt Read-only
+### 6.1 Version 1 – Strictly Read-only
 
-Version 1 erlaubt ausschließlich lesende Aufrufe:
+Version 1 permits read-only calls exclusively:
 
 - `GET /healthz`
 - `GET /api/v1/info`
-- Export und lesende Einzelabfragen
-- Authentifizierungs- und `read`-Berechtigungsprüfungen
-- Prüfung von Response-Format, Headern und Schemas
+- export and read-only individual queries
+- authentication and `read` permission checks
+- checks of response format, headers, and schemas
 
-Schreiboperationen sind serverseitig gesperrt. Auch negative Tests, die einen schreibenden Endpunkt aufrufen würden, sind ausgeschlossen. Lesende Negativtests (z. B. fehlendes oder ungültiges Token sowie nicht vorhandene Ressource) sind zulässig. Nicht ausführbare Prüfungen erhalten `NOT TESTED` oder `BLOCKED`, niemals `PASS`.
+Write operations are blocked server-side. Negative tests that would call a write endpoint are also excluded. Read-only negative tests, such as a missing or invalid token or a non-existent resource, are permitted. Checks that cannot be executed receive `NOT TESTED` or `BLOCKED`, never `PASS`.
 
-### 6.2 Schreibende Konformitätstests – außerhalb von Version 1
+### 6.2 Write Conformance Tests – Outside Version 1
 
-Schreibende Prüfungen gehören nicht zu Version 1. Ein späterer Conformance Test Mode erfordert vor der Implementierung ein eigenes Sicherheitsdesign und darf nur in einer ausdrücklich freigegebenen Testumgebung ausgeführt werden. Mindestens festzulegen sind:
+Write checks are not part of version 1. A future conformance test mode requires a dedicated security design before implementation and may run only in an explicitly approved test environment. At minimum, the following must be defined:
 
-- explizite Aktivierung und Bestätigung durch den Benutzer
-- deutliche Kennzeichnung des Zielsystems
-- technische Absicherung gegen produktive Ziele
-- Verwendung eindeutig gekennzeichneter Testobjekte
-- Bereinigung nach den Tests
-- Behandlung von Teilfehlern und unbekanntem Zustand
+- explicit activation and confirmation by the user
+- clear identification of the target system
+- technical protection against production targets
+- use of clearly identified test objects
+- cleanup after tests
+- handling of partial failures and unknown state
 
-Schreibtests werden nicht stillschweigend aktiviert oder aus der Version-1-Oberfläche erreichbar gemacht.
+Write tests are not enabled implicitly or made accessible from the version 1 interface.
 
-## 7. Geplante Testbereiche
+## 7. Planned Test Areas
 
-Die folgende Liste bildet den geplanten Umfang ab. Die genaue Zuordnung zu einzelnen API-Operationen wird bei der Implementierung anhand der v1.0-Spezifikation und `api/openapi.yaml` erstellt.
+The following list defines the planned scope. The exact mapping to individual API operations will be created during implementation based on the v1.0 specification and `api/openapi.yaml`.
 
-| Testbereich | Inhalt | Priorität |
+| Test area | Content | Priority |
 |---|---|---|
-| Erreichbarkeit | `/healthz`, Verbindung und Timeout | Prototyp |
-| API-Information | `/api/v1/info`, API- und Spezifikationsversion, Limits | Prototyp |
-| Authentifizierung | fehlendes, ungültiges und gültiges Token | Prototyp |
-| Autorisierung | Vorhandensein von `read`; fehlender Scope als `BLOCKED` | Prototyp |
-| Lesende Core-Endpunkte | Export und verfügbare GET-Operationen | Prototyp |
-| Response-Konformität | Status, Header, JSON-Struktur und Problem Details | Prototyp |
-| ETag | Vorhandensein und Format in lesenden Antworten | Version 1 |
-| Pfadkodierung | URL-kodierte Pfadparameter bei GET-Aufrufen | Version 1 |
-| PMSS Extra | separate, optionale Prüfung lesender Erweiterungen | Version 1 / optional |
-| Validierung | unbekannte Felder (`422`), ungültige Schreibwerte und Request-Limits (`413`) | später / Schreibtestmodus |
-| If-Match | fehlender Header (`428`), falscher ETag (`412`), gültiger ETag | später / Schreibtestmodus |
-| Passwortverhalten | keine Rückgabe übermittelter Passwörter | später / Schreibtestmodus |
-| Beziehungen | Gruppenmitgliedschaften und Rollen-/ACL-Zuordnungen durch Änderungen | später / Schreibtestmodus |
-| Brokerfehler | Darstellung von `503` und `504`; keine Simulation oder automatische Wiederholung | später / kontrollierte Umgebung |
+| Reachability | `/healthz`, connection, and timeout | Prototype |
+| API information | `/api/v1/info`, API and specification version, limits | Prototype |
+| Authentication | missing, invalid, and valid token | Prototype |
+| Authorization | presence of `read`; missing scope as `BLOCKED` | Prototype |
+| Read-only Core endpoints | export and available GET operations | Prototype |
+| Response conformance | status, headers, JSON structure, and problem details | Prototype |
+| ETag | presence and format in read-only responses | Version 1 |
+| Path encoding | URL-encoded path parameters in GET calls | Version 1 |
+| PMSS Extra | separate, optional check of read-only extensions | Version 1 / optional |
+| Validation | unknown fields (`422`), invalid write values, and request limits (`413`) | Later / write test mode |
+| If-Match | missing header (`428`), incorrect ETag (`412`), valid ETag | Later / write test mode |
+| Password behavior | no return of submitted passwords | Later / write test mode |
+| Relationships | group memberships and role/ACL assignments through changes | Later / write test mode |
+| Broker errors | display of `503` and `504`; no simulation or automatic retry | Later / controlled environment |
 
-## 8. Umsetzungsschritte
+## 8. Implementation Steps
 
-### Phase 1 – Projektgrundlage
+### Phase 1 – Project Foundation
 
-- [x] Neues Go-Projekt und Repository-Struktur anlegen
-- [x] `net/http` / `ServeMux` als HTTP-Grundlage einrichten
-- [x] `templ` und HTMX integrieren
-- [x] TasmoFleet-nahe Layout- und Navigationsstruktur erstellen
-- [x] Statische Assets in das Binary einbetten
-- [x] Docker Multi-Stage-Build erstellen
-- [x] Eigenen Health-Endpunkt des Testers und grundlegende Konfiguration implementieren
-- [x] Eingebettete OpenAPI-Spezifikation beim Start validieren und bei Fehlern fail-fast beenden
+- [x] Create a new Go project and repository structure
+- [x] Set up `net/http` / `ServeMux` as the HTTP foundation
+- [x] Integrate `templ` and HTMX
+- [x] Create a TasmoFleet-style layout and navigation structure
+- [x] Embed static assets in the binary
+- [x] Create the Docker multi-stage build
+- [x] Implement the tester's own health endpoint and basic configuration
+- [x] Validate the embedded OpenAPI specification at startup and fail fast on errors
 
-**Ergebnis:** Startfähiger Docker-Prototyp mit Grundgerüst der Oberfläche, geprüftem Konfigurationsstart und eigenem Health-Endpunkt.
+**Result:** Runnable Docker prototype with a basic UI foundation, validated startup configuration, and its own health endpoint.
 
-### Phase 2 – Keycloak-Anmeldung
+### Phase 2 – Keycloak Login
 
-- [ ] Keycloak-Client für den Tester konfigurieren
-- [ ] Authorization Code Flow mit PKCE implementieren
-- [ ] BFF-Session und sichere Cookies einrichten
-- [ ] Tokens ausschließlich serverseitig halten
-- [ ] Logout, Session-Ablauf und CSRF-Schutz für zustandsändernde UI-Aktionen behandeln
-- [ ] Serverseitigen Token Exchange nach RFC 8693 implementieren
-- [ ] Audience zielsystemspezifisch konfigurierbar machen (PMSS: `phylax-mqtt-security-service`)
-- [ ] Ausschließlich `read` anfordern und zurückgegebene Scopes auswerten
-- [ ] Fehlerfälle beim Token Exchange sichtbar darstellen
+- [ ] Configure the Keycloak client for the tester
+- [ ] Implement the Authorization Code Flow with PKCE
+- [ ] Set up a BFF session and secure cookies
+- [ ] Keep tokens exclusively server-side
+- [ ] Handle logout, session expiration, and CSRF protection for state-changing UI actions
+- [ ] Implement server-side token exchange according to RFC 8693
+- [ ] Make the audience configurable per target system (PMSS: `phylax-mqtt-security-service`)
+- [ ] Request only `read` and evaluate the returned scopes
+- [ ] Display token-exchange error cases clearly
 
-**Ergebnis:** Benutzer kann sich anmelden; das Backend kann serverseitig ein benutzerbezogenes `read`-Token für das konfigurierte API-Ziel beziehen.
+**Result:** A user can log in; the backend can obtain a user-specific `read` token server-side for the configured API target.
 
 ### Phase 3 – API Explorer
 
-- [ ] PMSS-Ziel über HTTPS-Basis-URL konfigurieren
-- [ ] Eingebettete OpenAPI-Datei laden und ausschließlich lesende Operationen zur Ausführung freigeben
-- [ ] Core API und PMSS Extra getrennt kennzeichnen
-- [ ] GET-Aufrufe serverseitig ausführen und andere Methoden serverseitig als `BLOCKED` abweisen
-- [ ] GET-Parameter erfassen und Request-/Response-Schemas darstellen
-- [ ] Status, Header, Body und Laufzeit darstellen
-- [ ] Fehlerantworten und fehlende `read`-Berechtigung verständlich anzeigen
+- [ ] Configure the PMSS target through an HTTPS base URL
+- [ ] Load the embedded OpenAPI file and allow only read-only operations to be executed
+- [ ] Mark Core API and PMSS Extra separately
+- [ ] Execute GET calls server-side and reject other methods as `BLOCKED`
+- [ ] Capture GET parameters and display request/response schemas
+- [ ] Display status, headers, body, and duration
+- [ ] Display error responses and missing `read` permission clearly
 
-**Ergebnis:** Manuelle, nachvollziehbare und strikt lesende API-Aufrufe gegen PMSS.
+**Result:** Manual, traceable, strictly read-only API calls against PMSS.
 
-### Phase 4 – Erste automatisierte Prüfungen
+### Phase 4 – Initial Automated Checks
 
-- [ ] Erreichbarkeit und `/healthz` prüfen
-- [ ] `/api/v1/info` und Versionsangaben prüfen
-- [ ] Authentifizierung testen
-- [ ] `read`-Berechtigung prüfen; fehlendes `read` als `BLOCKED` ausweisen
-- [ ] ausgewählte GET-Endpunkte ausführen
-- [ ] Response-Status, Header und JSON-Struktur prüfen
-- [ ] RFC-9457-Problem-Details und `503`/`504` unterscheidbar auswerten
-- [ ] ETag-Header und URL-kodierte GET-Pfadparameter prüfen
-- [ ] Ergebnisse mit `PASS`, `FAIL`, `NOT TESTED` und `BLOCKED` anzeigen
+- [ ] Check reachability and `/healthz`
+- [ ] Check `/api/v1/info` and version information
+- [ ] Test authentication
+- [ ] Check `read` permission; report missing `read` as `BLOCKED`
+- [ ] Execute selected GET endpoints
+- [ ] Check response status, headers, and JSON structure
+- [ ] Evaluate RFC 9457 problem details and distinguish `503`/`504`
+- [ ] Check ETag headers and URL-encoded GET path parameters
+- [ ] Display results as `PASS`, `FAIL`, `NOT TESTED`, and `BLOCKED`
 
-**Ergebnis:** Erste reproduzierbare Core-Prüfungen im strikt lesenden Version-1-Modus.
+**Result:** Initial reproducible Core checks in the strictly read-only version 1 mode.
 
-### Phase 5 – Qualitätssicherung und Bereitstellung
+### Phase 5 – Quality Assurance and Delivery
 
-- [ ] Unit-Tests für Konfiguration, OpenAPI-Validierung und HTTP-Handler
-- [ ] tabellarische Unit-Tests für Statusauswertung, Scopes, Header, ETags,
-      RFC-9457-Problem-Details und `PASS`/`FAIL`/`BLOCKED`/`NOT TESTED`
-- [ ] HTTP-Szenarien mit `httptest.Server` und `httptest.ResponseRecorder` abdecken
-- [ ] Read-only-Sperre sowie Core-/PMSS-Extra-Trennung testen
-- [ ] Integrationstests für die vollständige Backend- und HTTP-Verarbeitung
-- [ ] Playwright-E2E-Tests für Login, API Explorer und zentrale Workflows
-- [ ] begrenzte visuelle Regressionstests nach TasmoFleet-Konventionen
-- [ ] Docker-Build und Laufzeittest
-- [ ] Dokumentation der Konfiguration und des Betriebs
-- [ ] dokumentierten Testlauf gegen eine PMSS-Referenzimplementierung durchführen
+- [ ] Unit tests for configuration, OpenAPI validation, and HTTP handlers
+- [ ] Table-driven unit tests for status evaluation, scopes, headers, ETags, RFC 9457 problem details, and `PASS`/`FAIL`/`BLOCKED`/`NOT TESTED`
+- [ ] Cover HTTP scenarios with `httptest.Server` and `httptest.ResponseRecorder`
+- [ ] Test the read-only restriction and Core/PMSS Extra separation
+- [ ] Integration tests for complete backend and HTTP processing
+- [ ] Playwright E2E tests for login, the API Explorer, and central workflows
+- [ ] Limited visual regression tests following TasmoFleet conventions
+- [ ] Docker build and runtime test
+- [ ] Documented test run against a PMSS reference implementation
 
-**Ergebnis:** Reproduzierbar baubares und testbares Release des API Testers.
+**Result:** A reproducibly buildable and testable release of the API Tester.
 
-### Ausblick – spätere Erweiterungen (nicht Version 1)
+### Outlook – Later Extensions (Not Version 1)
 
-- [ ] Eigenständiges Sicherheitsdesign und ausdrückliche Freigabe für einen Conformance Test Mode erstellen
-- [ ] Testziel-Absicherung, Testobjekte, Bereinigung und Behandlung unbekannter Zustände festlegen
-- [ ] Schreibtests für `If-Match`, Validierung, Request-Limits, Passwörter und Beziehungen implementieren
-- [ ] PMSS-Extra-Prüfungen unabhängig von Core-Konformität erweitern
+- [ ] Create a dedicated security design and explicit approval for a conformance test mode
+- [ ] Define target protection, test objects, cleanup, and handling of unknown states
+- [ ] Implement write tests for `If-Match`, validation, request limits, passwords, and relationships
+- [ ] Expand PMSS Extra checks independently of Core conformance
 
-**Ergebnis:** Nur nach separater Freigabe: kontrollierte Erweiterung über den Read-only-Umfang von Version 1 hinaus.
+**Result:** Only after separate approval: controlled extension beyond the version 1 read-only scope.
 
-## 9. Offene Entscheidungen
+## 9. Open Decisions
 
-Vor bzw. während der jeweiligen Phase sind noch folgende Punkte konkret festzulegen:
+Before or during the relevant phase, the following points still need to be defined:
 
-1. **Keycloak-Client:** Redirect-URIs, Client-Authentifizierung, Token-Exchange-Berechtigungen und Secret-Verwaltung.
-2. **Scopes und Rollen:** Zuordnung in Keycloak verifizieren; das ausgegebene `read`-Scope ist maßgeblich, fehlendes `read` wird `BLOCKED`.
-3. **Zielsystem-Konfiguration:** ein oder mehrere Ziele, Ablage der Konfiguration und Absicherung der Basis-URL; UI-Überschreibungen sind nicht für Version 1 festgelegt.
-4. **Timeouts:** den vorgeschlagenen Standard von `10s` sowie getrennte Behandlung von Verbindungs- und Antwort-Timeouts verifizieren.
-5. **Session:** Laufzeit, Refresh-Verhalten und Logout konkretisieren.
-6. **Ergebnisexport:** ob Testergebnisse später als JSON oder Markdown exportiert werden sollen.
-7. **Spätere Schreibtests:** Sicherheitsdesign, Aktivierung, Testobjekte und Bereinigung vor einem zukünftigen Conformance Test Mode festlegen.
+1. **Keycloak client:** redirect URIs, client authentication, token-exchange permissions, and secret management.
+2. **Scopes and roles:** verify the mapping in Keycloak; the `read` scope returned is authoritative, and missing `read` is reported as `BLOCKED`.
+3. **Target-system configuration:** one or more targets, configuration storage, and base-URL protection; UI overrides are not defined for version 1.
+4. **Timeouts:** verify the proposed `10s` default and separate handling of connection and response timeouts.
+5. **Session:** define lifetime, refresh behavior, and logout.
+6. **Result export:** decide whether results should later be exportable as JSON or Markdown.
+7. **Later write tests:** define security design, activation, test objects, and cleanup before a future conformance test mode.
 
-Offene Entscheidungen werden nicht durch Annahmen ersetzt, sondern vor der betroffenen Implementierungsphase geklärt.
+Open decisions are not replaced with assumptions; they are resolved before the affected implementation phase.
 
-## 10. Abnahmekriterien für den ersten Prototyp
+## 10. Acceptance Criteria for the First Prototype
 
-Der erste Prototyp gilt als erreicht, wenn:
+The first prototype is considered complete when:
 
-- der Tester als einzelner Docker-Container startet,
-- die Oberfläche die TasmoFleet-Gestaltung aufgreift,
-- ein Benutzer sich über Keycloak anmelden kann,
-- das Backend einen Token Exchange mit Benutzeridentität durchführen kann,
-- ausschließlich lesende PMSS-Aufrufe möglich sind und andere Methoden serverseitig als `BLOCKED` abgewiesen werden,
-- der Token Exchange für PMSS `read` und die Audience `phylax-mqtt-security-service` verwendet,
-- ein konfiguriertes PMSS-Ziel erreichbar ist,
-- ausgewählte GET-Endpunkte über den API Explorer aufgerufen werden können,
-- die eingebettete OpenAPI-Spezifikation beim Start validiert wird,
-- HTTP-Status, Header und Response-Body sichtbar sind,
-- erste Authentifizierungs-, Berechtigungs- und Response-Prüfungen ausführbar sind,
-- Testergebnisse nachvollziehbar als `PASS`, `FAIL`, `NOT TESTED` oder `BLOCKED` erscheinen,
-- die vorhandenen Unit- und Integrationstests erfolgreich ausführbar sind,
-- mutierende Aufrufe auch bei direkter Anfrage an das Backend nicht ausgeführt werden können.
+- the tester starts as a single Docker container,
+- the interface adopts the TasmoFleet design,
+- a user can log in through Keycloak,
+- the backend can perform a token exchange preserving user identity,
+- only read-only PMSS calls are possible and other methods are rejected server-side as `BLOCKED`,
+- the PMSS token exchange uses `read` and the audience `phylax-mqtt-security-service`,
+- a configured PMSS target is reachable,
+- selected GET endpoints can be called through the API Explorer,
+- the embedded OpenAPI specification is validated at startup,
+- HTTP status, headers, and response body are visible,
+- initial authentication, authorization, and response checks can be executed,
+- test results are traceably shown as `PASS`, `FAIL`, `NOT TESTED`, or `BLOCKED`,
+- the existing unit and integration tests can be run successfully,
+- mutating calls are not executed even when directly requested from the backend.
 
 ---
 
-**Leitlinie:** Version 1 bleibt strikt Read-only: zuerst ein sicherer, benutzerbezogener API Explorer, darauf aufbauend automatisierte lesende Core-Prüfungen. Schreibende Konformitätstests sind spätere, separat freizugebende Erweiterungen und kein Bestandteil der Version-1-Abnahme.
+**Guideline:** Version 1 remains strictly read-only: first a secure, user-specific API Explorer, followed by automated read-only Core checks. Write conformance tests are later, separately approved extensions and are not part of the version 1 acceptance.
