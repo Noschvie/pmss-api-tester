@@ -2,6 +2,8 @@ services:
   pmss-api-tester:
     build: .
     container_name: pmss-api-tester
+    networks:
+      - pmss-it
     ports:
       - "8080:8080"
     environment:
@@ -15,3 +17,8 @@ services:
       OIDC_CALLBACK_URL: ${OIDC_CALLBACK_URL:-http://localhost:8080/auth/callback}
       OIDC_COOKIE_SECURE: ${OIDC_COOKIE_SECURE:-true}
       PMSS_AUDIENCE: ${PMSS_AUDIENCE:-phylax-mqtt-security-service}
+
+networks:
+  pmss-it:
+    external: true
+    name: pmss-it_default

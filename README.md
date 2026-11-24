@@ -7,11 +7,13 @@ A Go-based, read-only API explorer and conformance tester for the MQTT Security 
 Build and start the application with Docker Compose:
 
 ```sh
+# Start the pmss-it integration stack first so its external Docker network exists.
 docker compose up --build -d
 ```
 
-Stop and remove the container with `docker compose down`. To use a different host port, change
-the first port in the `ports` mapping in `compose.yaml` (for example, `8081:8080`).
+The Compose setup joins the existing `pmss-it_default` network automatically. Stop and remove the
+container with `docker compose down`. To use a different host port, change the first port in the
+`ports` mapping in `compose.yaml` (for example, `8081:8080`).
 
 Alternatively, build and run the image directly with Docker:
 
@@ -72,15 +74,9 @@ while discovery and ID-token issuer validation continue to use the canonical iss
 at the same origin as `OIDC_CALLBACK_URL` so the callback and session cookie use the same host. Set
 `OIDC_COOKIE_SECURE=true` when serving the tester over HTTPS.
 
-If `OIDC_INTERNAL_URL` uses the integration-stack hostname `keycloak:8080`, the tester container
-must share that stack's Docker network. With the upstream integration Compose project name `pmss-it`,
-connect it after starting the tester:
-
-```sh
-docker network connect pmss-it_default pmss-api-tester
-```
-
-Repeat this after recreating the tester container.
+When using the integration-stack hostname `keycloak:8080` for `OIDC_INTERNAL_URL`, start the
+upstream integration stack before starting this Compose project. The tester then joins its
+`pmss-it_default` network automatically, including after the container is recreated.
 
 After login, the backend validates the OIDC ID token and exchanges the user's access token using
 RFC 8693, requesting only `read` and the configured audience. Access tokens and session data are
