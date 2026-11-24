@@ -1,0 +1,5 @@
+.git
+.idea
+**/*_test.go
+README.md
+docs
