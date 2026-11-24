@@ -19,6 +19,7 @@ import (
 
 type explorerPageData struct {
 	TargetURL         string
+	InsecureTarget    bool
 	Configured        bool
 	AuthEnabled       bool
 	Authenticated     bool
@@ -111,6 +112,7 @@ var explorerTemplate = template.Must(template.New("api-explorer").Funcs(explorer
 			</div>
 			<section class="explorer-status">
 				<div><div class="eyebrow">ZIELSYSTEM</div><strong>{{if .Configured}}{{.TargetURL}}{{else}}Nicht konfiguriert{{end}}</strong></div>
+				{{if .InsecureTarget}}<p class="blocked-text" role="alert">Warnung: HTTP ist unverschlüsselt; das Benutzer-Token wird im Klartext übertragen. Nur in isolierten Testumgebungen verwenden.</p>{{end}}
 				{{if not .Configured}}<p>Setze <code>PMSS_API_BASE_URL</code> auf eine HTTPS-Basis-URL, um API-Aufrufe zu aktivieren.</p>{{else if not .Authenticated}}
 					<p>{{if .AuthEnabled}}Melde dich an, um den Explorer mit deinem Benutzer-Token zu verwenden.{{else}}OIDC ist nicht konfiguriert. API-Aufrufe sind <strong>BLOCKED</strong>.{{end}}</p>
 				{{else if not .HasReadScope}}<p class="blocked-text"><strong>BLOCKED</strong> · Der angemeldete Benutzer besitzt keinen <code>read</code>-Scope.</p>
@@ -181,10 +183,11 @@ var explorerTemplate = template.Must(template.New("api-explorer").Funcs(explorer
 
 func explorerData(cfg config.Config, authService *auth.Service, operations []openapi.Operation, request *http.Request) explorerPageData {
 	data := explorerPageData{
-		TargetURL:   cfg.PMSSAPIBaseURL,
-		Configured:  cfg.PMSSAPIBaseURL != "",
-		AuthEnabled: authService.Enabled(),
-		Values:      make(map[string]string),
+		TargetURL:      cfg.PMSSAPIBaseURL,
+		InsecureTarget: strings.HasPrefix(strings.ToLower(cfg.PMSSAPIBaseURL), "http://"),
+		Configured:     cfg.PMSSAPIBaseURL != "",
+		AuthEnabled:    authService.Enabled(),
+		Values:         make(map[string]string),
 	}
 	for _, operation := range operations {
 		if operation.Extra {
@@ -292,7 +295,7 @@ func handleExplorerExecute(
 		return
 	}
 	if !data.Configured || client == nil {
-		data.Result = blockedResult("Das HTTPS-Zielsystem ist nicht konfiguriert.")
+		data.Result = blockedResult("Das Zielsystem ist nicht konfiguriert.")
 		renderExplorer(w, data, http.StatusServiceUnavailable)
 		return
 	}

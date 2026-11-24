@@ -12,9 +12,10 @@ import (
 const defaultHTTPAddr = ":8080"
 
 type Config struct {
-	HTTPAddr       string
-	PMSSAPIBaseURL string
-	OIDC           OIDCConfig
+	HTTPAddr              string
+	PMSSAPIBaseURL        string
+	PMSSAllowInsecureHTTP bool
+	OIDC                  OIDCConfig
 }
 
 type OIDCConfig struct {
@@ -87,14 +88,26 @@ func Load() (Config, error) {
 		}
 	}
 
-	pmssAPIBaseURL := strings.TrimRight(os.Getenv("PMSS_API_BASE_URL"), "/")
-	if pmssAPIBaseURL != "" {
-		if err := validateHTTPSURL("PMSS_API_BASE_URL", pmssAPIBaseURL); err != nil {
-			return Config{}, err
+	allowInsecureHTTP := false
+	if value := os.Getenv("PMSS_ALLOW_INSECURE_HTTP"); value != "" {
+		allowInsecureHTTP, err = strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid PMSS_ALLOW_INSECURE_HTTP %q: expected true or false", value)
 		}
 	}
 
-	return Config{HTTPAddr: addr, PMSSAPIBaseURL: pmssAPIBaseURL, OIDC: oidcConfig}, nil
+	pmssAPIBaseURL := strings.TrimRight(os.Getenv("PMSS_API_BASE_URL"), "/")
+	if pmssAPIBaseURL != "" {
+		if err := validateHTTPURL("PMSS_API_BASE_URL", pmssAPIBaseURL); err != nil {
+			return Config{}, err
+		}
+		parsed, _ := url.Parse(pmssAPIBaseURL)
+		if parsed.Scheme != "https" && !allowInsecureHTTP {
+			return Config{}, fmt.Errorf("invalid PMSS_API_BASE_URL: HTTPS is required unless PMSS_ALLOW_INSECURE_HTTP is enabled")
+		}
+	}
+
+	return Config{HTTPAddr: addr, PMSSAPIBaseURL: pmssAPIBaseURL, PMSSAllowInsecureHTTP: allowInsecureHTTP, OIDC: oidcConfig}, nil
 }
 
 func validateHTTPURL(name, value string) error {
@@ -104,17 +117,6 @@ func validateHTTPURL(name, value string) error {
 	}
 	if parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return fmt.Errorf("invalid %s %q: user info, query, and fragment are not allowed", name, value)
-	}
-	return nil
-}
-
-func validateHTTPSURL(name, value string) error {
-	if err := validateHTTPURL(name, value); err != nil {
-		return err
-	}
-	parsed, _ := url.Parse(value)
-	if parsed.Scheme != "https" {
-		return fmt.Errorf("invalid %s %q: HTTPS is required", name, value)
 	}
 	return nil
 }

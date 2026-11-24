@@ -5,6 +5,7 @@ import "testing"
 func TestLoadUsesDefaultAddress(t *testing.T) {
 	t.Setenv("HTTP_ADDR", "")
 	t.Setenv("PMSS_API_BASE_URL", "")
+	t.Setenv("PMSS_ALLOW_INSECURE_HTTP", "")
 	t.Setenv("OIDC_ISSUER_URL", "")
 	t.Setenv("OIDC_INTERNAL_URL", "")
 	t.Setenv("OIDC_CLIENT_ID", "")
@@ -19,6 +20,9 @@ func TestLoadUsesDefaultAddress(t *testing.T) {
 	}
 	if cfg.HTTPAddr != ":8080" {
 		t.Fatalf("HTTPAddr = %q, want %q", cfg.HTTPAddr, ":8080")
+	}
+	if cfg.PMSSAllowInsecureHTTP {
+		t.Fatal("insecure HTTP must be disabled by default")
 	}
 	if cfg.OIDC.CallbackURL != "http://localhost:8080/auth/callback" || cfg.OIDC.Audience != "phylax-mqtt-security-service" || !cfg.OIDC.CookieSecure {
 		t.Fatalf("unexpected OIDC defaults: %+v", cfg.OIDC)
@@ -76,6 +80,7 @@ func TestLoadRejectsIncompleteOIDCConfig(t *testing.T) {
 func TestLoadPMSSAPIBaseURL(t *testing.T) {
 	t.Setenv("HTTP_ADDR", "")
 	t.Setenv("PMSS_API_BASE_URL", "https://pmss.example.org/api/")
+	t.Setenv("PMSS_ALLOW_INSECURE_HTTP", "")
 	t.Setenv("OIDC_ISSUER_URL", "")
 	t.Setenv("OIDC_INTERNAL_URL", "")
 	t.Setenv("OIDC_CLIENT_ID", "")
@@ -103,6 +108,7 @@ func TestLoadRejectsInsecurePMSSAPIBaseURL(t *testing.T) {
 		t.Run(value, func(t *testing.T) {
 			t.Setenv("HTTP_ADDR", "")
 			t.Setenv("PMSS_API_BASE_URL", value)
+			t.Setenv("PMSS_ALLOW_INSECURE_HTTP", "")
 			t.Setenv("OIDC_ISSUER_URL", "")
 			t.Setenv("OIDC_INTERNAL_URL", "")
 			t.Setenv("OIDC_CLIENT_ID", "")
@@ -112,6 +118,40 @@ func TestLoadRejectsInsecurePMSSAPIBaseURL(t *testing.T) {
 			t.Setenv("OIDC_COOKIE_SECURE", "")
 			if _, err := Load(); err == nil {
 				t.Fatal("Load succeeded with an invalid PMSS_API_BASE_URL")
+			}
+		})
+	}
+}
+
+func TestLoadPMSSHTTPException(t *testing.T) {
+	for _, tt := range []struct {
+		name, flag, target string
+		wantErr            bool
+		allowed            bool
+	}{
+		{"default blocks HTTP", "", "http://pmss.example.org", true, false},
+		{"false blocks HTTP", "false", "http://pmss.example.org", true, false},
+		{"true allows HTTP", "true", "http://pmss.example.org/base/", false, true},
+		{"invalid flag fails", "yes", "https://pmss.example.org", true, false},
+		{"FTP remains blocked", "true", "ftp://pmss.example.org", true, false},
+		{"credentials remain blocked", "true", "http://user:pass@pmss.example.org", true, false},
+		{"query remains blocked", "true", "http://pmss.example.org?x=1", true, false},
+		{"fragment remains blocked", "true", "http://pmss.example.org/#fragment", true, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("HTTP_ADDR", "")
+			t.Setenv("PMSS_API_BASE_URL", tt.target)
+			t.Setenv("PMSS_ALLOW_INSECURE_HTTP", tt.flag)
+			t.Setenv("OIDC_ISSUER_URL", "")
+			t.Setenv("OIDC_CLIENT_ID", "")
+			t.Setenv("OIDC_CLIENT_SECRET", "")
+			t.Setenv("OIDC_COOKIE_SECURE", "")
+			cfg, err := Load()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Load() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && (cfg.PMSSAllowInsecureHTTP != tt.allowed || cfg.PMSSAPIBaseURL != "http://pmss.example.org/base") {
+				t.Fatalf("unexpected config: %+v", cfg)
 			}
 		})
 	}

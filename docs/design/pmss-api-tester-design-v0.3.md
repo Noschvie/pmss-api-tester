@@ -139,6 +139,7 @@ Planned environment variables:
 
 ```env
 PMSS_API_BASE_URL=https://pmss.example.org
+PMSS_ALLOW_INSECURE_HTTP=false
 PMSS_HTTP_TIMEOUT=10s
 
 OIDC_ISSUER_URL=https://keycloak.example.org/realms/Tasmofleet
@@ -150,7 +151,10 @@ TZ=Europe/Vienna
 
 Notes:
 
-- `PMSS_API_BASE_URL` is the HTTPS base URL of the PMSS system under test.
+- `PMSS_API_BASE_URL` is the HTTPS base URL of the PMSS system under test. An HTTP URL is permitted
+  only when `PMSS_ALLOW_INSECURE_HTTP=true` is explicitly set for an isolated test environment.
+  HTTP sends bearer tokens unencrypted and does not authenticate the target; it must not be used
+  in production or on untrusted networks.
 - `PMSS_HTTP_TIMEOUT` configures the HTTP timeout. `10s` is a proposed value and not yet a confirmed limit.
 - `OIDC_ISSUER_URL` points to the existing `Tasmofleet` Keycloak realm.
 - `OIDC_CLIENT_ID` identifies the tester's own OIDC client.

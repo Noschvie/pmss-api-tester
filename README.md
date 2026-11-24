@@ -48,8 +48,8 @@ Credentials** in the Keycloak admin console and place it in an untracked `.env` 
 secret in source control. The supplied realm contains test users and credentials and is intended
 only for an isolated test instance.
 
-The configured redirect URI is `http://localhost:8080/auth/callback` and the post-logout redirect URI
-is `http://localhost:8080/`. If the tester is accessed at another origin, update both URIs on the
+The supplied realm's redirect URI is `http://192.168.7.39:8080/auth/callback` and its post-logout
+redirect URI is `http://192.168.7.39:8080/`. If the tester is accessed at another origin, update both URIs on the
 Keycloak client and set `OIDC_CALLBACK_URL` accordingly.
 
 Set these variables in the environment used to start Compose (or in an untracked `.env` file):
@@ -59,7 +59,7 @@ OIDC_ISSUER_URL=http://192.168.7.39:8180/realms/pmss-test
 OIDC_INTERNAL_URL=
 OIDC_CLIENT_ID=pmss-api-tester
 OIDC_CLIENT_SECRET=<client-secret>
-OIDC_CALLBACK_URL=http://localhost:8080/auth/callback
+OIDC_CALLBACK_URL=http://192.168.7.39:8080/auth/callback
 OIDC_COOKIE_SECURE=false
 PMSS_AUDIENCE=phylax-mqtt-security-service
 ```
@@ -69,7 +69,7 @@ the authorization and token endpoints from its OpenID Connect metadata. Leave `O
 empty when the issuer URL is reachable from the tester container. If Docker needs a different
 internal address, set it to the equivalent Keycloak realm URL; only backend requests are rewritten,
 while discovery and ID-token issuer validation continue to use the canonical issuer. Open the tester
-at `http://localhost:8080` so the callback and session cookie use the same host. Set
+at the same origin as `OIDC_CALLBACK_URL` so the callback and session cookie use the same host. Set
 `OIDC_COOKIE_SECURE=true` when serving the tester over HTTPS.
 
 If `OIDC_INTERNAL_URL` uses the integration-stack hostname `keycloak:8080`, the tester container
@@ -101,10 +101,31 @@ Set the target's HTTPS base URL in the environment or `.env` file:
 
 ```env
 PMSS_API_BASE_URL=https://pmss.example.org
+PMSS_ALLOW_INSECURE_HTTP=false
 ```
 
 The URL may include a base path, but must not include user information, a query, or a fragment.
-Leave it empty to browse the embedded specification without executing calls. Open **API Explorer**
+HTTPS is required by default, with normal certificate verification. For an isolated integration
+test environment only, explicitly enable unencrypted HTTP:
+
+```env
+PMSS_API_BASE_URL=http://192.168.7.39:18080
+PMSS_ALLOW_INSECURE_HTTP=true
+```
+
+In this example, port `18080` is the integration stack's published PMSS port on the Docker host;
+the tester container must be able to reach that address. HTTP sends the user's bearer token and
+responses unencrypted and does not authenticate the target. Anyone with network access to the
+traffic may read, modify, or replay the token; never enable this for production or untrusted
+networks. The application logs a warning at startup and displays one in the explorer when using
+HTTP. The flag does not disable TLS certificate verification for HTTPS, affect OIDC transport, or
+change the read-only restriction. Recreate the container after changing `.env`:
+
+```sh
+docker compose up --build -d
+```
+
+Leave `PMSS_API_BASE_URL` empty to browse the embedded specification without executing calls. Open **API Explorer**
 from the navigation to see Core API and PMSS Extra operations separately. GET parameters and schemas
 are generated from the embedded OpenAPI
 specification. Calls run server-side with the logged-in user's exchanged token and require the

@@ -40,10 +40,10 @@ type Client struct {
 	http    *http.Client
 }
 
-func NewClient(baseURL string) (*Client, error) {
+func NewClient(baseURL string, allowInsecureHTTP bool) (*Client, error) {
 	parsed, err := url.Parse(baseURL)
-	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
-		return nil, errors.New("PMSS API base URL must be an absolute HTTPS URL without user info, query, or fragment")
+	if err != nil || (parsed.Scheme != "https" && !(allowInsecureHTTP && parsed.Scheme == "http")) || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return nil, errors.New("PMSS API base URL must be an absolute HTTPS URL (or HTTP when explicitly enabled) without user info, query, or fragment")
 	}
 	return &Client{
 		baseURL: parsed,

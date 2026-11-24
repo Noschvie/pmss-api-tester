@@ -87,7 +87,7 @@ func Page(state PageState) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</a></div><div class=\"card-note\">HTTPS-Zielsystem · <a href=\"/api-explorer\">API Explorer öffnen</a></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</a></div><div class=\"card-note\">Zielsystem · <a href=\"/api-explorer\">API Explorer öffnen</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

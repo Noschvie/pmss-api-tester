@@ -105,8 +105,28 @@ func TestAPIExplorerRequiresConfiguredHTTPSBaseURL(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("API Explorer status = %d, want %d", response.Code, http.StatusOK)
 	}
+
 	if !strings.Contains(response.Body.String(), "HTTPS-Basis-URL") {
 		t.Fatal("unconfigured PMSS target was not reported")
+	}
+}
+
+func TestAPIExplorerHTTPRequiresExceptionAndWarns(t *testing.T) {
+	cfg := config.Config{PMSSAPIBaseURL: "http://pmss.example.org"}
+	if _, err := NewHandler(cfg); err == nil {
+		t.Fatal("handler accepted HTTP without an explicit exception")
+	}
+	cfg.PMSSAllowInsecureHTTP = true
+	for _, target := range []string{"http://pmss.example.org", "HTTP://pmss.example.org"} {
+		t.Run(target, func(t *testing.T) {
+			cfg.PMSSAPIBaseURL = target
+			handler := mustNewHandler(t, cfg)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api-explorer", nil))
+			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "HTTP ist unverschlüsselt") || !strings.Contains(response.Body.String(), "Token wird im Klartext übertragen") {
+				t.Fatalf("HTTP warning missing from explorer: status %d", response.Code)
+			}
+		})
 	}
 }
 

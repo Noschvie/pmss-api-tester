@@ -33,7 +33,7 @@ func TestExecuteEncodesPathAndQueryAndReturnsResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := NewClient(server.URL + "/base")
+	client, err := NewClient(server.URL+"/base", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestExecuteEncodesPathAndQueryAndReturnsResponse(t *testing.T) {
 }
 
 func TestExecuteBlocksNonGetBeforeSending(t *testing.T) {
-	client, err := NewClient("https://pmss.example.org")
+	client, err := NewClient("https://pmss.example.org", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ paths:
 	}))
 	defer server.Close()
 
-	client, err := NewClient(server.URL)
+	client, err := NewClient(server.URL, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ paths:
 }
 
 func TestOperationURLRejectsPathTraversal(t *testing.T) {
-	client, err := NewClient("https://pmss.example.org")
+	client, err := NewClient("https://pmss.example.org", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,5 +134,56 @@ func TestOperationURLRejectsPathTraversal(t *testing.T) {
 	}, url.Values{"p0": {"../admin"}})
 	if err == nil {
 		t.Fatal("operationURL accepted a dot-segment path parameter")
+	}
+}
+
+func TestNewClientURLPolicy(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		allow   bool
+		wantErr bool
+	}{
+		{"HTTPS by default", "https://pmss.example.org", false, false},
+		{"HTTPS with exception", "https://pmss.example.org", true, false},
+		{"HTTP blocked by default", "http://pmss.example.org", false, true},
+		{"HTTP explicitly enabled", "http://pmss.example.org", true, false},
+		{"FTP still blocked", "ftp://pmss.example.org", true, true},
+		{"credentials still blocked", "http://user:pass@pmss.example.org", true, true},
+		{"query still blocked", "http://pmss.example.org?q=1", true, true},
+		{"fragment still blocked", "http://pmss.example.org/#fragment", true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewClient(tt.url, tt.allow)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("NewClient() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestExecuteHTTPWithExplicitPermission(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/info" || r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		http.Redirect(w, r, "/redirected", http.StatusFound)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(server.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := client.Execute(context.Background(), openapi.Operation{Method: http.MethodGet, Path: "/api/v1/info"}, nil, "test-token")
+	if err != nil || result.StatusCode != http.StatusFound || requests != 1 {
+		t.Fatalf("result = %+v, error = %v, requests = %d", result, err, requests)
+	}
+	_, err = client.Execute(context.Background(), openapi.Operation{Method: http.MethodPost, Path: "/api/v1/info"}, nil, "test-token")
+	if err == nil || !strings.Contains(err.Error(), "BLOCKED") || requests != 1 {
+		t.Fatalf("POST error = %v, requests = %d", err, requests)
 	}
 }

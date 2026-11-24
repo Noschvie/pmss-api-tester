@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -30,6 +31,9 @@ func run() error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
+	}
+	if strings.HasPrefix(strings.ToLower(cfg.PMSSAPIBaseURL), "http://") {
+		logger.Warn("PMSS HTTP is enabled: access tokens are transmitted without encryption; use only in an isolated test environment")
 	}
 	if err := openapi.Validate(api.Definition()); err != nil {
 		return err

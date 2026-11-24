@@ -34,7 +34,7 @@ func NewHandler(cfg config.Config) (http.Handler, error) {
 	}
 	var pmssClient *pmss.Client
 	if cfg.PMSSAPIBaseURL != "" {
-		pmssClient, err = pmss.NewClient(cfg.PMSSAPIBaseURL)
+		pmssClient, err = pmss.NewClient(cfg.PMSSAPIBaseURL, cfg.PMSSAllowInsecureHTTP)
 		if err != nil {
 			return nil, err
 		}
