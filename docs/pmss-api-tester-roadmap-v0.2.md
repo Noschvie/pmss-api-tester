@@ -218,15 +218,17 @@ The following list defines the planned scope. The exact mapping to individual AP
 
 ### Phase 3 – API Explorer
 
-- [ ] Configure the PMSS target through an HTTPS base URL
-- [ ] Load the embedded OpenAPI file and allow only read-only operations to be executed
-- [ ] Mark Core API and PMSS Extra separately
-- [ ] Execute GET calls server-side and reject other methods as `BLOCKED`
-- [ ] Capture GET parameters and display request/response schemas
-- [ ] Display status, headers, body, and duration
-- [ ] Display error responses and missing `read` permission clearly
+- [x] Configure the PMSS target through an HTTPS base URL
+- [x] Load the embedded OpenAPI file and allow only read-only operations to be executed
+- [x] Mark Core API and PMSS Extra separately
+- [x] Execute GET calls server-side and reject other methods as `BLOCKED`
+- [x] Capture GET parameters and display request/response schemas
+- [x] Display status, headers, body, and duration
+- [x] Display error responses and missing `read` permission clearly
 
-**Result:** Manual, traceable, strictly read-only API calls against PMSS.
+**Result:** Manual, traceable, strictly read-only API calls against PMSS. Calls use the configured
+HTTPS base URL and the logged-in user's server-side token; non-GET operations are blocked.
+Declared parameter and JSON response schemas are validated before display.
 
 ### Phase 4 – Initial Automated Checks
 
