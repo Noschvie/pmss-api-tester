@@ -33,6 +33,18 @@ The UI follows TasmoFleet's design direction: Geist typography, a compact neutra
 accents, softly rounded surfaces, and light and dark themes. HTMX 2.0.11 and the licensed Geist font
 files are served locally from embedded application assets. Version 1 remains strictly read-only.
 
+## Tests
+
+With Go 1.26 or newer, run the Go tests from the repository root:
+
+```sh
+go test ./...
+```
+
+The suite includes unit tests and HTTP tests with local mock servers, including an anonymous
+read-only checks workflow. It does not replace an authenticated integration test against a real
+Keycloak and PMSS instance, browser or visual regression tests, or Docker runtime verification.
+
 ## Keycloak login (Phase 2)
 
 The login is optional until OIDC is configured. `config/pmss-test-realm.json` defines a dedicated

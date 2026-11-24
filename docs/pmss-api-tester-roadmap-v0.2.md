@@ -248,15 +248,19 @@ persistent history, and never retries broker failures automatically. Path-encodi
 
 ### Phase 5 – Quality Assurance and Delivery
 
-- [ ] Unit tests for configuration, OpenAPI validation, and HTTP handlers
+- [x] Unit tests for configuration, OpenAPI validation, and HTTP handlers
 - [ ] Table-driven unit tests for status evaluation, scopes, headers, ETags, RFC 9457 problem details, and `PASS`/`FAIL`/`BLOCKED`/`NOT TESTED`
 - [ ] Cover HTTP scenarios with `httptest.Server` and `httptest.ResponseRecorder`
-- [ ] Test the read-only restriction and Core/PMSS Extra separation
+- [x] Test the read-only restriction and Core/PMSS Extra separation
 - [ ] Integration tests for complete backend and HTTP processing
 - [ ] Playwright E2E tests for login, the API Explorer, and central workflows
 - [ ] Limited visual regression tests following TasmoFleet conventions
 - [ ] Docker build and runtime test
 - [ ] Documented test run against a PMSS reference implementation
+
+Status: Table-driven response and problem-details tests and an anonymous end-to-end HTTP
+scenario are in place. Authenticated backend workflows, full HTTP scenario coverage, browser and
+visual tests, Docker verification, and a reference-implementation run remain outstanding.
 
 **Result:** A reproducibly buildable and testable release of the API Tester.
 

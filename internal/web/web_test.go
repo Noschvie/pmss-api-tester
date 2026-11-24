@@ -106,7 +106,7 @@ func TestAPIExplorerRequiresConfiguredHTTPSBaseURL(t *testing.T) {
 		t.Fatalf("API Explorer status = %d, want %d", response.Code, http.StatusOK)
 	}
 
-	if !strings.Contains(response.Body.String(), "HTTPS-Basis-URL") {
+	if !strings.Contains(response.Body.String(), "Set <code>PMSS_API_BASE_URL</code> to an HTTPS base URL") {
 		t.Fatal("unconfigured PMSS target was not reported")
 	}
 }

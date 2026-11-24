@@ -55,8 +55,8 @@ func TestTesterRealmConfiguration(t *testing.T) {
 			!client.StandardFlow || client.ImplicitFlow || client.DirectGrants || client.ServiceAccount {
 			t.Fatal("tester client has incorrect authentication flows")
 		}
-		if !slices.Equal(client.Redirects, []string{"http://localhost:8080/auth/callback"}) ||
-			client.Attributes["post.logout.redirect.uris"] != "http://localhost:8080/" ||
+		if !slices.Equal(client.Redirects, []string{"http://192.168.7.39:8080/auth/callback"}) ||
+			client.Attributes["post.logout.redirect.uris"] != "http://192.168.7.39:8080/" ||
 			client.Attributes["pkce.code.challenge.method"] != "S256" ||
 			client.Attributes["standard.token.exchange.enabled"] != "true" {
 			t.Fatal("tester client has incorrect redirects, PKCE or token exchange settings")
