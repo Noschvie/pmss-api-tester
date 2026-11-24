@@ -225,7 +225,7 @@ func TestChecksRunAllowsAnonymousReadOnlyChecks(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body: %s", response.Code, http.StatusOK, response.Body.String())
 	}
-	for _, expected := range []string{"Erreichbarkeit · GET /healthz", "Authentifizierung · Token fehlt", "Authentifizierung · Ungültiger Token", "GET /api/v1/info", "PASS", "BLOCKED"} {
+	for _, expected := range []string{"Availability · GET /healthz", "Authentication · Missing token", "Authentication · Invalid token", "GET /api/v1/info", "PASS", "BLOCKED"} {
 		if !strings.Contains(response.Body.String(), expected) {
 			t.Errorf("checks response is missing %q", expected)
 		}

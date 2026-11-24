@@ -68,7 +68,7 @@ func explorerTemplateFuncs() template.FuncMap {
 }
 
 var explorerTemplate = template.Must(template.New("api-explorer").Funcs(explorerTemplateFuncs()).Parse(`<!doctype html>
-<html lang="de" data-theme="light">
+<html lang="en" data-theme="light">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -82,13 +82,13 @@ var explorerTemplate = template.Must(template.New("api-explorer").Funcs(explorer
 </head>
 <body>
 <div class="app-shell">
-	<aside class="sidebar" aria-label="Hauptnavigation">
-		<a class="brand" href="/" aria-label="PMSS API Tester Startseite"><span class="brand-mark" aria-hidden="true">P</span><span class="brand-copy"><strong>PMSS</strong><small>API Tester</small></span></a>
+	<aside class="sidebar" aria-label="Main navigation">
+		<a class="brand" href="/" aria-label="PMSS API Tester home"><span class="brand-mark" aria-hidden="true">P</span><span class="brand-copy"><strong>PMSS</strong><small>API Tester</small></span></a>
 		<div class="nav-caption">WORKSPACE</div>
 		<nav>
-			<a class="nav-item" href="/"><span class="nav-icon" aria-hidden="true">▦</span><span>Übersicht</span></a>
+			<a class="nav-item" href="/"><span class="nav-icon" aria-hidden="true">▦</span><span>Overview</span></a>
 			<a class="nav-item active" href="/api-explorer" aria-current="page"><span class="nav-icon" aria-hidden="true">⌘</span><span>API Explorer</span></a>
-			<a class="nav-item" href="/checks"><span class="nav-icon" aria-hidden="true">✓</span><span>Prüfungen</span></a>
+			<a class="nav-item" href="/checks"><span class="nav-icon" aria-hidden="true">✓</span><span>Checks</span></a>
 		</nav>
 		<div class="sidebar-bottom"><div class="sidebar-rule"></div><div class="version-label">VERSION 1 · READ-ONLY</div></div>
 	</aside>
@@ -98,45 +98,45 @@ var explorerTemplate = template.Must(template.New("api-explorer").Funcs(explorer
 			<div class="topbar-actions">
 				{{if .Authenticated}}
 					<span class="user-label">{{.Username}}</span>
-					<form method="post" action="/auth/logout"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button class="logout-button" type="submit">Abmelden</button></form>
+					<form method="post" action="/auth/logout"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button class="logout-button" type="submit">Log out</button></form>
 				{{else if .AuthEnabled}}
-					<a class="login-button" href="/auth/login">Mit Keycloak anmelden</a>
+					<a class="login-button" href="/auth/login">Sign in with Keycloak</a>
 				{{end}}
-				<button class="theme-toggle" type="button" aria-label="Farbschema umschalten" title="Farbschema umschalten"><span class="theme-light" aria-hidden="true">☼</span><span class="theme-dark" aria-hidden="true">◐</span></button>
+				<button class="theme-toggle" type="button" aria-label="Toggle color scheme" title="Toggle color scheme"><span class="theme-light" aria-hidden="true">☼</span><span class="theme-dark" aria-hidden="true">◐</span></button>
 			</div>
 		</header>
 		<div class="page-body explorer-body">
 			<div class="page-heading">
-				<div><div class="eyebrow">OPENAPI 3.2.1 · SPEZIFIKATION 1.0</div><h1>API Explorer</h1><p class="subtitle">GET-Aufrufe an das Zielsystem – ausschließlich lesend und mit deinem Benutzer-Token.</p></div>
+				<div><div class="eyebrow">OPENAPI 3.2.1 · SPECIFICATION 1.0</div><h1>API Explorer</h1><p class="subtitle">Read-only GET requests to the target system using your user token.</p></div>
 				<div class="readonly-badge"><span class="lock-icon" aria-hidden="true">▣</span> Read-only</div>
 			</div>
 			<section class="explorer-status">
-				<div><div class="eyebrow">ZIELSYSTEM</div><strong>{{if .Configured}}{{.TargetURL}}{{else}}Nicht konfiguriert{{end}}</strong></div>
-				{{if .InsecureTarget}}<p class="blocked-text" role="alert">Warnung: HTTP ist unverschlüsselt; das Benutzer-Token wird im Klartext übertragen. Nur in isolierten Testumgebungen verwenden.</p>{{end}}
-				{{if not .Configured}}<p>Setze <code>PMSS_API_BASE_URL</code> auf eine HTTPS-Basis-URL, um API-Aufrufe zu aktivieren.</p>{{else if not .Authenticated}}
-					<p>{{if .AuthEnabled}}Melde dich an, um den Explorer mit deinem Benutzer-Token zu verwenden.{{else}}OIDC ist nicht konfiguriert. API-Aufrufe sind <strong>BLOCKED</strong>.{{end}}</p>
-				{{else if not .HasReadScope}}<p class="blocked-text"><strong>BLOCKED</strong> · Der angemeldete Benutzer besitzt keinen <code>read</code>-Scope.</p>
-				{{else}}<p>Angemeldet als <strong>{{.Username}}</strong> · Scopes: <code>{{.ScopeLabel}}</code></p>{{end}}
+				<div><div class="eyebrow">TARGET SYSTEM</div><strong>{{if .Configured}}{{.TargetURL}}{{else}}Not configured{{end}}</strong></div>
+				{{if .InsecureTarget}}<p class="blocked-text" role="alert">Warning: HTTP is unencrypted; the user token will be sent in plaintext. Use only in isolated test environments.</p>{{end}}
+				{{if not .Configured}}<p>Set <code>PMSS_API_BASE_URL</code> to an HTTPS base URL to enable API requests.</p>{{else if not .Authenticated}}
+					<p>{{if .AuthEnabled}}Sign in to use the explorer with your user token.{{else}}OIDC is not configured. API requests are <strong>BLOCKED</strong>.{{end}}</p>
+				{{else if not .HasReadScope}}<p class="blocked-text"><strong>BLOCKED</strong> · The signed-in user does not have the <code>read</code> scope.</p>
+				{{else}}<p>Signed in as <strong>{{.Username}}</strong> · Scopes: <code>{{.ScopeLabel}}</code></p>{{end}}
 			</section>
 			{{if .Result}}
 				<section class="explorer-result" aria-live="polite">
-					<div class="result-heading"><div><div class="eyebrow">LETZTE ANFRAGE</div><h2>{{.Result.StatusText}}{{if .Result.StatusCode}} · HTTP {{.Result.StatusCode}}{{end}}</h2></div>{{if .Result.Duration}}<span class="duration">{{.Result.Duration}}</span>{{end}}</div>
+					<div class="result-heading"><div><div class="eyebrow">LATEST REQUEST</div><h2>{{.Result.StatusText}}{{if .Result.StatusCode}} · HTTP {{.Result.StatusCode}}{{end}}</h2></div>{{if .Result.Duration}}<span class="duration">{{.Result.Duration}}</span>{{end}}</div>
 					{{if .Result.RequestURL}}<div class="request-url"><span>GET</span><code>{{.Result.RequestURL}}</code></div>{{end}}
 					{{if .Result.Error}}<p class="blocked-text" role="alert">{{.Result.Error}}</p>{{end}}
-					{{if .Result.SchemaChecked}}<p class="schema-status {{if .Result.SchemaValid}}schema-valid{{else}}schema-invalid{{end}}">Response-Schema: {{if .Result.SchemaValid}}VALID{{else}}INVALID{{end}}</p>{{end}}
+					{{if .Result.SchemaChecked}}<p class="schema-status {{if .Result.SchemaValid}}schema-valid{{else}}schema-invalid{{end}}">Response schema: {{if .Result.SchemaValid}}VALID{{else}}INVALID{{end}}</p>{{end}}
 					{{if .Result.SchemaError}}<p class="blocked-text schema-error" role="alert">{{.Result.SchemaError}}</p>{{end}}
-					{{if .Result.Headers}}<details class="schema-details" open><summary>Response-Header</summary><dl class="response-headers">{{range .Result.Headers}}<dt>{{.Name}}</dt><dd>{{.Value}}</dd>{{end}}</dl></details>{{end}}
-					{{if .Result.Body}}<details class="schema-details" open><summary>Response-Body{{if .Result.BodyTruncated}} (auf 1 MiB begrenzt){{end}}</summary><pre>{{.Result.Body}}</pre></details>{{end}}
+					{{if .Result.Headers}}<details class="schema-details" open><summary>Response headers</summary><dl class="response-headers">{{range .Result.Headers}}<dt>{{.Name}}</dt><dd>{{.Value}}</dd>{{end}}</dl></details>{{end}}
+					{{if .Result.Body}}<details class="schema-details" open><summary>Response body{{if .Result.BodyTruncated}} (limited to 1 MiB){{end}}</summary><pre>{{.Result.Body}}</pre></details>{{end}}
 				</section>
 			{{end}}
-			{{if not .CoreOperations}}<section class="info-panel"><p>Die OpenAPI-Spezifikation enthält keine Operationen.</p></section>{{end}}
-			<section class="operation-section"><div class="section-title"><div><div class="eyebrow">STANDARDISIERTE SCHNITTSTELLE</div><h2>Core API</h2></div><span class="operation-count">{{len .CoreOperations}} Operationen</span></div>
+			{{if not .CoreOperations}}<section class="info-panel"><p>The OpenAPI specification contains no operations.</p></section>{{end}}
+			<section class="operation-section"><div class="section-title"><div><div class="eyebrow">STANDARDIZED INTERFACE</div><h2>Core API</h2></div><span class="operation-count">{{len .CoreOperations}} operations</span></div>
 				{{range .CoreOperations}}{{template "operation" (dict "Page" $ "Operation" .)}}{{end}}
 			</section>
-			<section class="operation-section"><div class="section-title"><div><div class="eyebrow">IMPLEMENTIERUNGSSPEZIFISCH</div><h2>PMSS Extra</h2></div><span class="operation-count">{{len .ExtraOperations}} Operationen</span></div>
+			<section class="operation-section"><div class="section-title"><div><div class="eyebrow">IMPLEMENTATION-SPECIFIC</div><h2>PMSS Extra</h2></div><span class="operation-count">{{len .ExtraOperations}} operations</span></div>
 				{{range .ExtraOperations}}{{template "operation" (dict "Page" $ "Operation" .)}}{{end}}
 			</section>
-			<footer class="page-footer">PMSS API Tester <span>·</span> Version 1 <span>·</span> Alle schreibenden Operationen sind serverseitig gesperrt</footer>
+			<footer class="page-footer">PMSS API Tester <span>·</span> Version 1 <span>·</span> All write operations are blocked server-side</footer>
 		</div>
 	</main>
 </div>
@@ -156,25 +156,25 @@ var explorerTemplate = template.Must(template.New("api-explorer").Funcs(explorer
 				<input type="hidden" name="method" value="{{$operation.Method}}">
 				{{if $operation.Parameters}}
 					<div class="parameter-grid">
-						<p class="parameter-hint">Pfadwerte unkodiert eingeben; sie werden vor dem Request RFC-3986-kodiert.</p>
+						<p class="parameter-hint">Enter path values unencoded; they will be RFC 3986-encoded before the request.</p>
 						{{range $operation.Parameters}}
 							<label class="parameter-field" for="{{$operation.ID}}-{{.FormKey}}">
-								<span>{{.Name}} <small>{{.In}}{{if .Required}} · erforderlich{{end}}</small></span>
-								<input id="{{$operation.ID}}-{{.FormKey}}" name="{{.FormKey}}" type="text" value="{{if eq $page.SelectedOperation $operation.ID}}{{index $page.Values .FormKey}}{{end}}" placeholder="{{if .Required}}Wert eingeben{{else}}Optional{{end}}" {{if .Required}}required{{end}}>
+								<span>{{.Name}} <small>{{.In}}{{if .Required}} · required{{end}}</small></span>
+								<input id="{{$operation.ID}}-{{.FormKey}}" name="{{.FormKey}}" type="text" value="{{if eq $page.SelectedOperation $operation.ID}}{{index $page.Values .FormKey}}{{end}}" placeholder="{{if .Required}}Enter a value{{else}}Optional{{end}}" {{if .Required}}required{{end}}>
 								{{if .Description}}<small>{{.Description}}</small>{{end}}
-								{{if .Schema}}<details class="parameter-schema"><summary>Parameterschema</summary><pre>{{.Schema}}</pre></details>{{end}}
+								{{if .Schema}}<details class="parameter-schema"><summary>Parameter schema</summary><pre>{{.Schema}}</pre></details>{{end}}
 							</label>
 						{{end}}
 					</div>
 				{{end}}
-				<button class="login-button execute-button" type="submit" {{if not (and $page.Configured $page.Authenticated $page.HasReadScope)}}disabled{{end}}>GET ausführen</button>
+				<button class="login-button execute-button" type="submit" {{if not (and $page.Configured $page.Authenticated $page.HasReadScope)}}disabled{{end}}>Run GET</button>
 			</form>
 		{{else}}
-			<p class="blocked-text">Diese Operation ist im Read-only-Modus serverseitig gesperrt.</p>
+			<p class="blocked-text">This operation is blocked server-side in read-only mode.</p>
 		{{end}}
 		<div class="schema-grid">
-			{{if $operation.RequestSchema}}<details class="schema-details"><summary>Request-Schema</summary><pre>{{$operation.RequestSchema}}</pre></details>{{end}}
-			{{if $operation.ResponseSchema}}<details class="schema-details"><summary>Response-Schema</summary><pre>{{$operation.ResponseSchema}}</pre></details>{{end}}
+			{{if $operation.RequestSchema}}<details class="schema-details"><summary>Request schema</summary><pre>{{$operation.RequestSchema}}</pre></details>{{end}}
+			{{if $operation.ResponseSchema}}<details class="schema-details"><summary>Response schema</summary><pre>{{$operation.ResponseSchema}}</pre></details>{{end}}
 		</div>
 	</article>
 {{end}}
@@ -267,7 +267,7 @@ func handleExplorerExecute(
 	data := explorerData(cfg, authService, allOperations, r)
 	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	if err := r.ParseForm(); err != nil {
-		data.Result = errorResult(fmt.Errorf("Ungültige Anfrage: %w", err))
+		data.Result = errorResult(fmt.Errorf("Invalid request: %w", err))
 		renderExplorer(w, data, http.StatusBadRequest)
 		return
 	}
@@ -276,7 +276,7 @@ func handleExplorerExecute(
 	operation, exists := operations[operationID]
 	data.SelectedOperation = operationID
 	if !exists {
-		data.Result = blockedResult("Unbekannte OpenAPI-Operation.")
+		data.Result = blockedResult("Unknown OpenAPI operation.")
 		renderExplorer(w, data, http.StatusBadRequest)
 		return
 	}
@@ -285,27 +285,27 @@ func handleExplorerExecute(
 	}
 	submittedMethod := strings.ToUpper(strings.TrimSpace(r.PostForm.Get("method")))
 	if operation.Method != http.MethodGet || submittedMethod != http.MethodGet {
-		data.Result = blockedResult("Nur GET-Aufrufe sind in Version 1 erlaubt.")
+		data.Result = blockedResult("Only GET requests are allowed in version 1.")
 		renderExplorer(w, data, http.StatusForbidden)
 		return
 	}
 	if !authService.ValidateCSRF(r, r.PostForm.Get("csrf_token")) {
-		data.Result = blockedResult("Die CSRF-Prüfung ist fehlgeschlagen. Lade die Seite neu und versuche es erneut.")
+		data.Result = blockedResult("CSRF validation failed. Reload the page and try again.")
 		renderExplorer(w, data, http.StatusForbidden)
 		return
 	}
 	if !data.Configured || client == nil {
-		data.Result = blockedResult("Das Zielsystem ist nicht konfiguriert.")
+		data.Result = blockedResult("The target system is not configured.")
 		renderExplorer(w, data, http.StatusServiceUnavailable)
 		return
 	}
 	if !data.Authenticated {
-		data.Result = blockedResult("Melde dich an, bevor du API-Aufrufe ausführst.")
+		data.Result = blockedResult("Sign in before making API requests.")
 		renderExplorer(w, data, http.StatusForbidden)
 		return
 	}
 	if !data.HasReadScope {
-		data.Result = blockedResult("Der Token-Austausch hat keinen erforderlichen read-Scope geliefert.")
+		data.Result = blockedResult("Token exchange did not return the required read scope.")
 		renderExplorer(w, data, http.StatusForbidden)
 		return
 	}
@@ -317,13 +317,13 @@ func handleExplorerExecute(
 		}
 	}
 	if err := operation.ValidateParameters(values); err != nil {
-		data.Result = errorResult(fmt.Errorf("Ungültige Parameter: %w", err))
+		data.Result = errorResult(fmt.Errorf("Invalid parameters: %w", err))
 		renderExplorer(w, data, http.StatusBadRequest)
 		return
 	}
 	accessToken, ok := authService.PMSSAccessToken(r)
 	if !ok {
-		data.Result = blockedResult("Der PMSS-Zugriff ist nicht autorisiert.")
+		data.Result = blockedResult("PMSS access is not authorized.")
 		renderExplorer(w, data, http.StatusForbidden)
 		return
 	}

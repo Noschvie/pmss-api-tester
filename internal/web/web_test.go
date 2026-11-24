@@ -74,7 +74,7 @@ func TestAPIExplorerSeparatesOperationsAndShowsReadOnlyStatus(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("API Explorer status = %d, want %d", response.Code, http.StatusOK)
 	}
-	for _, expected := range []string{"Core API", "PMSS Extra", "getInfo", "GET ausführen", "BLOCKED", "Response-Schema"} {
+	for _, expected := range []string{"Core API", "PMSS Extra", "getInfo", "Run GET", "BLOCKED", "Response schema"} {
 		if !strings.Contains(response.Body.String(), expected) {
 			t.Errorf("API Explorer is missing %q", expected)
 		}
@@ -92,7 +92,7 @@ func TestAPIExplorerBlocksNonGETOperations(t *testing.T) {
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusForbidden)
 	}
-	if !strings.Contains(response.Body.String(), "BLOCKED") || !strings.Contains(response.Body.String(), "Nur GET-Aufrufe") {
+	if !strings.Contains(response.Body.String(), "BLOCKED") || !strings.Contains(response.Body.String(), "Only GET requests") {
 		t.Fatal("non-GET operation was not clearly blocked")
 	}
 }
@@ -123,7 +123,7 @@ func TestAPIExplorerHTTPRequiresExceptionAndWarns(t *testing.T) {
 			handler := mustNewHandler(t, cfg)
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api-explorer", nil))
-			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "HTTP ist unverschlüsselt") || !strings.Contains(response.Body.String(), "Token wird im Klartext übertragen") {
+			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "HTTP is unencrypted") || !strings.Contains(response.Body.String(), "user token will be sent in plaintext") {
 				t.Fatalf("HTTP warning missing from explorer: status %d", response.Code)
 			}
 		})

@@ -59,12 +59,12 @@ func NewHandler(cfg config.Config) (http.Handler, error) {
 		w.Header().Set("Cache-Control", "no-store")
 		location, err := authService.BeginLogin(r.Context())
 		if err != nil {
-			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Anmeldung konnte nicht gestartet werden: "+err.Error()), http.StatusSeeOther)
+			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Could not start sign-in: "+err.Error()), http.StatusSeeOther)
 			return
 		}
 		stateURL, err := url.Parse(location)
 		if err != nil {
-			http.Error(w, "OIDC-Anmelde-URL ist ungültig", http.StatusInternalServerError)
+			http.Error(w, "OIDC sign-in URL is invalid", http.StatusInternalServerError)
 			return
 		}
 		http.SetCookie(w, authService.StateCookie(stateURL.Query().Get("state")))
@@ -75,17 +75,17 @@ func NewHandler(cfg config.Config) (http.Handler, error) {
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		http.SetCookie(w, authService.ClearStateCookie())
 		if r.URL.Query().Get("error") != "" {
-			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Keycloak hat die Anmeldung abgelehnt."), http.StatusSeeOther)
+			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Keycloak rejected the sign-in request."), http.StatusSeeOther)
 			return
 		}
 		state := r.URL.Query().Get("state")
 		if !authService.StateCookieMatches(r, state) {
-			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Anmeldestatus ist ungültig oder abgelaufen."), http.StatusSeeOther)
+			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Sign-in state is invalid or has expired."), http.StatusSeeOther)
 			return
 		}
 		sessionID, session, err := authService.CompleteLogin(r.Context(), state, r.URL.Query().Get("code"))
 		if err != nil {
-			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Anmeldung fehlgeschlagen: "+err.Error()), http.StatusSeeOther)
+			http.Redirect(w, r, "/?auth_error="+url.QueryEscape("Sign-in failed: "+err.Error()), http.StatusSeeOther)
 			return
 		}
 		http.SetCookie(w, authService.Cookie(sessionID, session.ExpiresAt))
@@ -94,19 +94,19 @@ func NewHandler(cfg config.Config) (http.Handler, error) {
 	mux.HandleFunc("POST /auth/logout", func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, 4096)
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Ungültige Abmeldeanfrage", http.StatusBadRequest)
+			http.Error(w, "Invalid logout request", http.StatusBadRequest)
 			return
 		}
 		_, sessionID := authService.Session(r)
 		idToken, ok := authService.Logout(sessionID, r.PostForm.Get("csrf_token"))
 		if !ok {
-			http.Error(w, "Ungültige CSRF-Prüfung", http.StatusForbidden)
+			http.Error(w, "Invalid CSRF validation", http.StatusForbidden)
 			return
 		}
 		http.SetCookie(w, authService.ClearCookie())
 		redirectURL, err := url.Parse(cfg.OIDC.CallbackURL)
 		if err != nil {
-			http.Error(w, "Abmelde-URL ist ungültig konfiguriert", http.StatusInternalServerError)
+			http.Error(w, "Logout URL is invalidly configured", http.StatusInternalServerError)
 			return
 		}
 		redirectURL.Path = "/"

@@ -26,7 +26,7 @@ func Page(state PageState) templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"de\" data-theme=\"light\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"light dark\"><title>PMSS API Tester</title><link rel=\"preload\" href=\"/static/geist-latin.woff2\" as=\"font\" type=\"font/woff2\" crossorigin><link rel=\"preload\" href=\"/static/geist-mono-latin.woff2\" as=\"font\" type=\"font/woff2\" crossorigin><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"/static/htmx.min.js\" defer></script><script src=\"/static/app.js\" defer></script></head><body><div class=\"app-shell\"><aside class=\"sidebar\" aria-label=\"Hauptnavigation\"><a class=\"brand\" href=\"/\" aria-label=\"PMSS API Tester Startseite\"><span class=\"brand-mark\" aria-hidden=\"true\">P</span> <span class=\"brand-copy\"><strong>PMSS</strong><small>API Tester</small></span></a><div class=\"nav-caption\">WORKSPACE</div><nav><a class=\"nav-item active\" href=\"/\" aria-current=\"page\"><span class=\"nav-icon\" aria-hidden=\"true\">▦</span><span>Übersicht</span></a> <a class=\"nav-item\" href=\"/api-explorer\"><span class=\"nav-icon\" aria-hidden=\"true\">⌘</span><span>API Explorer</span></a><div class=\"nav-item nav-muted\" aria-disabled=\"true\"><span class=\"nav-icon\" aria-hidden=\"true\">✓</span><span>Prüfungen</span><span class=\"nav-soon\">Demnächst</span></div></nav><div class=\"sidebar-bottom\"><div class=\"sidebar-rule\"></div><div class=\"version-label\">VERSION 1 · READ-ONLY</div></div></aside><main class=\"main-content\"><header class=\"topbar\"><div class=\"breadcrumbs\"><span>PMSS API Tester</span><span class=\"crumb-separator\">/</span><strong>Übersicht</strong></div><div class=\"topbar-actions\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" data-theme=\"light\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"light dark\"><title>PMSS API Tester</title><link rel=\"preload\" href=\"/static/geist-latin.woff2\" as=\"font\" type=\"font/woff2\" crossorigin><link rel=\"preload\" href=\"/static/geist-mono-latin.woff2\" as=\"font\" type=\"font/woff2\" crossorigin><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"/static/htmx.min.js\" defer></script><script src=\"/static/app.js\" defer></script></head><body><div class=\"app-shell\"><aside class=\"sidebar\" aria-label=\"Main navigation\"><a class=\"brand\" href=\"/\" aria-label=\"PMSS API Tester home\"><span class=\"brand-mark\" aria-hidden=\"true\">P</span> <span class=\"brand-copy\"><strong>PMSS</strong><small>API Tester</small></span></a><div class=\"nav-caption\">WORKSPACE</div><nav><a class=\"nav-item active\" href=\"/\" aria-current=\"page\"><span class=\"nav-icon\" aria-hidden=\"true\">▦</span><span>Overview</span></a> <a class=\"nav-item\" href=\"/api-explorer\"><span class=\"nav-icon\" aria-hidden=\"true\">⌘</span><span>API Explorer</span></a><div class=\"nav-item nav-muted\" aria-disabled=\"true\"><span class=\"nav-icon\" aria-hidden=\"true\">✓</span><span>Checks</span><span class=\"nav-soon\">Coming soon</span></div></nav><div class=\"sidebar-bottom\"><div class=\"sidebar-rule\"></div><div class=\"version-label\">VERSION 1 · READ-ONLY</div></div></aside><main class=\"main-content\"><header class=\"topbar\"><div class=\"breadcrumbs\"><span>PMSS API Tester</span><span class=\"crumb-separator\">/</span><strong>Overview</strong></div><div class=\"topbar-actions\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -58,18 +58,18 @@ func Page(state PageState) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"> <button class=\"logout-button\" type=\"submit\">Abmelden</button></form>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"> <button class=\"logout-button\" type=\"submit\">Log out</button></form>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<a class=\"login-button\" href=\"/auth/login\">Mit Keycloak anmelden</a> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<a class=\"login-button\" href=\"/auth/login\">Sign in with Keycloak</a> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<button class=\"theme-toggle\" type=\"button\" aria-label=\"Farbschema umschalten\" title=\"Farbschema umschalten\"><span class=\"theme-light\" aria-hidden=\"true\">☼</span><span class=\"theme-dark\" aria-hidden=\"true\">◐</span></button></div></header><div class=\"page-body\"><div class=\"page-heading\"><div><div class=\"eyebrow\">MQTT SECURITY SERVICE</div><h1>Übersicht</h1><p class=\"subtitle\">API-Verbindung und Spezifikationsstatus auf einen Blick.</p></div><div class=\"readonly-badge\"><span class=\"lock-icon\" aria-hidden=\"true\">▣</span> Read-only</div></div><section class=\"status-grid\" aria-label=\"Systemstatus\"><article class=\"status-card\"><div class=\"card-topline\"><span>Tester-Status</span><span class=\"card-symbol green\" aria-hidden=\"true\">●</span></div><div class=\"card-value\" hx-get=\"/_ui/backend-status\" hx-trigger=\"load\" hx-swap=\"innerHTML\"><span class=\"loading-dot\"></span> Wird geprüft</div><div class=\"card-note\">Lokaler Anwendungsstatus</div></article><article class=\"status-card\"><div class=\"card-topline\"><span>Zielsystem</span><span class=\"card-symbol blue\" aria-hidden=\"true\">◎</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<button class=\"theme-toggle\" type=\"button\" aria-label=\"Toggle color scheme\" title=\"Toggle color scheme\"><span class=\"theme-light\" aria-hidden=\"true\">☼</span><span class=\"theme-dark\" aria-hidden=\"true\">◐</span></button></div></header><div class=\"page-body\"><div class=\"page-heading\"><div><div class=\"eyebrow\">MQTT SECURITY SERVICE</div><h1>Overview</h1><p class=\"subtitle\">API-Verbindung und Spezifikationsstatus auf einen Blick.</p></div><div class=\"readonly-badge\"><span class=\"lock-icon\" aria-hidden=\"true\">▣</span> Read-only</div></div><section class=\"status-grid\" aria-label=\"System status\"><article class=\"status-card\"><div class=\"card-topline\"><span>Tester status</span><span class=\"card-symbol green\" aria-hidden=\"true\">●</span></div><div class=\"card-value\" hx-get=\"/_ui/backend-status\" hx-trigger=\"load\" hx-swap=\"innerHTML\"><span class=\"loading-dot\"></span> Checking</div><div class=\"card-note\">Local application status</div></article><article class=\"status-card\"><div class=\"card-topline\"><span>Target system</span><span class=\"card-symbol blue\" aria-hidden=\"true\">◎</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,17 +87,17 @@ func Page(state PageState) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</a></div><div class=\"card-note\">Zielsystem · <a href=\"/api-explorer\">API Explorer öffnen</a></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</a></div><div class=\"card-note\">Target system · <a href=\"/api-explorer\">Open API Explorer</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"card-value\">Noch nicht konfiguriert</div><div class=\"card-note\"><a href=\"/api-explorer\">Ziel und API Explorer einrichten</a></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"card-value\">Not configured</div><div class=\"card-note\"><a href=\"/api-explorer\">Configure target and API Explorer</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</article><article class=\"status-card\"><div class=\"card-topline\"><span>API-Spezifikation</span><span class=\"card-symbol blue\" aria-hidden=\"true\">⌗</span></div><div class=\"card-value\">Version 1.0</div><div class=\"card-note\">OpenAPI 3.2.1 · beim Start validiert</div></article></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</article><article class=\"status-card\"><div class=\"card-topline\"><span>API specification</span><span class=\"card-symbol blue\" aria-hidden=\"true\">⌗</span></div><div class=\"card-value\">Version 1.0</div><div class=\"card-note\">OpenAPI 3.2.1 · validated at startup</div></article></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -121,12 +121,12 @@ func Page(state PageState) templ.Component {
 			}
 		}
 		if !state.AuthEnabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<section class=\"auth-panel\"><div class=\"eyebrow\">KEYCLOAK-ANMELDUNG</div><h2>OIDC ist noch nicht konfiguriert</h2><p>Hinterlege Issuer, Client-ID und Client-Secret für den Integration-Keycloak, um die Anmeldung und den serverseitigen Token-Austausch zu aktivieren.</p></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<section class=\"auth-panel\"><div class=\"eyebrow\">KEYCLOAK SIGN-IN</div><h2>OIDC is not configured yet</h2><p>Configure the issuer, client ID, and client secret for the integration Keycloak to enable sign-in and server-side token exchange.</p></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if state.Authenticated {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<section class=\"auth-panel\"><div class=\"eyebrow\">ANGEMELDETER BENUTZER</div><h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<section class=\"auth-panel\"><div class=\"eyebrow\">SIGNED-IN USER</div><h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -139,7 +139,7 @@ func Page(state PageState) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</h2><p>Für PMSS angeforderte Berechtigung: <code>read</code>. Tatsächlich zurückgegebene Scopes: <code>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</h2><p>Scope requested for PMSS: <code>read</code>. Scopes actually returned: <code>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -157,7 +157,7 @@ func Page(state PageState) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if state.HasReadScope {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"auth-status auth-status-good\"><span class=\"status-indicator\"></span> Leseberechtigung vorhanden · Sitzung gültig bis ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"auth-status auth-status-good\"><span class=\"status-indicator\"></span> Read permission granted · session expires ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -175,7 +175,7 @@ func Page(state PageState) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"auth-status auth-status-blocked\"><span aria-hidden=\"true\">!</span> BLOCKED · Der Token-Austausch hat keinen <code>read</code>-Scope geliefert.</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"auth-status auth-status-blocked\"><span aria-hidden=\"true\">!</span> BLOCKED · Token exchange did not return the <code>read</code> scope.</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -185,12 +185,12 @@ func Page(state PageState) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<section class=\"auth-panel\"><div class=\"eyebrow\">KEYCLOAK-ANMELDUNG</div><h2>Mit deinem Benutzerkonto anmelden</h2><p>Der Login verwendet Authorization Code Flow mit PKCE. Tokens bleiben ausschließlich serverseitig; für PMSS wird nur der Scope <code>read</code> angefordert.</p><a class=\"login-button\" href=\"/auth/login\">Bei Keycloak anmelden</a></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<section class=\"auth-panel\"><div class=\"eyebrow\">KEYCLOAK SIGN-IN</div><h2>Sign in with your account</h2><p>Sign-in uses the Authorization Code Flow with PKCE. Tokens remain server-side; only the <code>read</code> scope is requested for PMSS.</p><a class=\"login-button\" href=\"/auth/login\">Sign in with Keycloak</a></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<section class=\"welcome-card\"><div class=\"welcome-copy\"><div class=\"eyebrow\">PROJEKTGRUNDLAGE</div><h2>Sichere Anmeldung über Keycloak</h2><p>Die Anmeldung erfolgt serverseitig über PKCE. PMSS-Zugriffstokens werden für den konfigurierten Empfänger ausgetauscht und verbleiben ausschließlich im Backend.</p></div><div class=\"welcome-art\" aria-hidden=\"true\"><div class=\"art-ring ring-one\"></div><div class=\"art-ring ring-two\"></div><div class=\"art-center\"><span>API</span><i>✓</i></div><div class=\"art-node node-one\"></div><div class=\"art-node node-two\"></div><div class=\"art-node node-three\"></div></div></section><section class=\"info-panel\"><div class=\"panel-heading\"><div><div class=\"eyebrow\">SICHERHEITSMODUS</div><h2>Strikt lesend</h2></div><span class=\"shield-icon\" aria-hidden=\"true\">◈</span></div><p>Version 1 führt ausschließlich lesende API-Aufrufe aus. Schreibende Operationen werden serverseitig gesperrt und sind nicht Teil dieses Prototyps.</p><div class=\"panel-footer\"><span class=\"status-indicator\"></span> Schreiboperationen sind deaktiviert</div></section><footer class=\"page-footer\">PMSS API Tester <span>·</span> Version 1 <span>·</span> TasmoFleet Produktfamilie</footer></div></main></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<section class=\"welcome-card\"><div class=\"welcome-copy\"><div class=\"eyebrow\">PROJEKTGRUNDLAGE</div><h2>Secure sign-in with Keycloak</h2><p>Sign-in uses server-side PKCE. PMSS access tokens are exchanged for the configured audience and remain exclusively in the backend.</p></div><div class=\"welcome-art\" aria-hidden=\"true\"><div class=\"art-ring ring-one\"></div><div class=\"art-ring ring-two\"></div><div class=\"art-center\"><span>API</span><i>✓</i></div><div class=\"art-node node-one\"></div><div class=\"art-node node-two\"></div><div class=\"art-node node-three\"></div></div></section><section class=\"info-panel\"><div class=\"panel-heading\"><div><div class=\"eyebrow\">SECURITY MODE</div><h2>Strictly read-only</h2></div><span class=\"shield-icon\" aria-hidden=\"true\">◈</span></div><p>Version 1 only makes read-only API calls. Write operations are blocked server-side and are not part of this prototype.</p><div class=\"panel-footer\"><span class=\"status-indicator\"></span> Write operations are disabled</div></section><footer class=\"page-footer\">PMSS API Tester <span>·</span> Version 1 <span>·</span> TasmoFleet product family</footer></div></main></div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -215,7 +215,7 @@ func BackendStatus() templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<span class=\"inline-status\"><span class=\"status-indicator\"></span> Bereit</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<span class=\"inline-status\"><span class=\"status-indicator\"></span> Ready</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -49,12 +49,12 @@ var checksTemplate = template.Must(template.New("checks").Funcs(template.FuncMap
 	"isPath": func(location string) bool { return location == "path" },
 	"statusClass": func(status string) string { return strings.ReplaceAll(strings.ToLower(status), " ", "-") },
 }).Parse(`<!doctype html>
-<html lang="de" data-theme="light">
+<html lang="en" data-theme="light">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<meta name="color-scheme" content="light dark">
-	<title>Prüfungen · PMSS API Tester</title>
+	<title>Checks · PMSS API Tester</title>
 	<link rel="preload" href="/static/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
 	<link rel="preload" href="/static/geist-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
 	<link rel="stylesheet" href="/static/app.css">
@@ -62,33 +62,33 @@ var checksTemplate = template.Must(template.New("checks").Funcs(template.FuncMap
 </head>
 <body>
 <div class="app-shell">
-	<aside class="sidebar" aria-label="Hauptnavigation">
-		<a class="brand" href="/" aria-label="PMSS API Tester Startseite"><span class="brand-mark" aria-hidden="true">P</span><span class="brand-copy"><strong>PMSS</strong><small>API Tester</small></span></a>
+	<aside class="sidebar" aria-label="Main navigation">
+		<a class="brand" href="/" aria-label="PMSS API Tester home"><span class="brand-mark" aria-hidden="true">P</span><span class="brand-copy"><strong>PMSS</strong><small>API Tester</small></span></a>
 		<div class="nav-caption">WORKSPACE</div>
 		<nav>
-			<a class="nav-item" href="/"><span class="nav-icon" aria-hidden="true">▦</span><span>Übersicht</span></a>
+			<a class="nav-item" href="/"><span class="nav-icon" aria-hidden="true">▦</span><span>Overview</span></a>
 			<a class="nav-item" href="/api-explorer"><span class="nav-icon" aria-hidden="true">⌘</span><span>API Explorer</span></a>
-			<a class="nav-item active" href="/checks" aria-current="page"><span class="nav-icon" aria-hidden="true">✓</span><span>Prüfungen</span></a>
+			<a class="nav-item active" href="/checks" aria-current="page"><span class="nav-icon" aria-hidden="true">✓</span><span>Checks</span></a>
 		</nav>
 		<div class="sidebar-bottom"><div class="sidebar-rule"></div><div class="version-label">VERSION 1 · READ-ONLY</div></div>
 	</aside>
 	<main class="main-content">
 		<header class="topbar">
-			<div class="breadcrumbs"><span>PMSS API Tester</span><span class="crumb-separator">/</span><strong>Prüfungen</strong></div>
+			<div class="breadcrumbs"><span>PMSS API Tester</span><span class="crumb-separator">/</span><strong>Checks</strong></div>
 			<div class="topbar-actions">
-				{{if .Authenticated}}<span class="user-label">{{.Username}}</span><form method="post" action="/auth/logout"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button class="logout-button" type="submit">Abmelden</button></form>{{else if .AuthEnabled}}<a class="login-button" href="/auth/login">Mit Keycloak anmelden</a>{{end}}
-				<button class="theme-toggle" type="button" aria-label="Farbschema umschalten" title="Farbschema umschalten"><span class="theme-light" aria-hidden="true">☼</span><span class="theme-dark" aria-hidden="true">◐</span></button>
+				{{if .Authenticated}}<span class="user-label">{{.Username}}</span><form method="post" action="/auth/logout"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button class="logout-button" type="submit">Log out</button></form>{{else if .AuthEnabled}}<a class="login-button" href="/auth/login">Sign in with Keycloak</a>{{end}}
+				<button class="theme-toggle" type="button" aria-label="Toggle color scheme" title="Toggle color scheme"><span class="theme-light" aria-hidden="true">☼</span><span class="theme-dark" aria-hidden="true">◐</span></button>
 			</div>
 		</header>
 		<div class="page-body checks-body">
-			<div class="page-heading"><div><div class="eyebrow">AUTOMATISIERTE CORE-CHECKS</div><h1>Prüfungen</h1><p class="subtitle">Wiederholbare, ausschließlich lesende Prüfungen gegen das konfigurierte Zielsystem.</p></div><div class="readonly-badge"><span class="lock-icon" aria-hidden="true">▣</span> Read-only</div></div>
+			<div class="page-heading"><div><div class="eyebrow">AUTOMATED CORE CHECKS</div><h1>Checks</h1><p class="subtitle">Repeatable, read-only checks against the configured target system.</p></div><div class="readonly-badge"><span class="lock-icon" aria-hidden="true">▣</span> Read-only</div></div>
 			<section class="explorer-status">
-				<div><div class="eyebrow">VORAUSSETZUNGEN</div><strong>{{if .Configured}}Zielsystem konfiguriert{{else}}Zielsystem nicht konfiguriert{{end}}</strong></div>
-				<p>{{if not .Configured}}Setze <code>PMSS_API_BASE_URL</code>, um Prüfungen auszuführen.{{else if not .Authenticated}}Melde dich an. Ohne gültige Sitzung bleiben geschützte Checks BLOCKED.{{else if not .HasReadScope}}Der Token besitzt keinen <code>read</code>-Scope; geschützte Checks werden BLOCKED.{{else}}Angemeldet als <strong>{{.Username}}</strong> · Scope <code>read</code>{{end}}</p>
+				<div><div class="eyebrow">REQUIREMENTS</div><strong>{{if .Configured}}Target system configured{{else}}Target system not configured{{end}}</strong></div>
+				<p>{{if not .Configured}}Set <code>PMSS_API_BASE_URL</code> to run checks.{{else if not .Authenticated}}Sign in. Protected checks remain BLOCKED without a valid session.{{else if not .HasReadScope}}The token does not have the <code>read</code> scope; protected checks are BLOCKED.{{else}}Signed in as <strong>{{.Username}}</strong> · Scope <code>read</code>{{end}}</p>
 			</section>
 			{{if .Results}}
 				<section class="explorer-result" aria-live="polite">
-					<div class="result-heading"><div><div class="eyebrow">PRÜFERGEBNISSE · NICHT PERSISTIERT</div><h2>{{len .Results}} Ergebnisse</h2></div></div>
+					<div class="result-heading"><div><div class="eyebrow">CHECK RESULTS · NOT PERSISTED</div><h2>{{len .Results}} results</h2></div></div>
 					<div class="check-results">
 						{{range .Results}}<article class="check-result check-{{.Status | statusClass}}"><div><strong>{{.Name}}</strong><span class="check-status">{{.Status}}</span></div><p>{{.Detail}}</p></article>{{end}}
 					</div>
@@ -97,19 +97,19 @@ var checksTemplate = template.Must(template.New("checks").Funcs(template.FuncMap
 			<form method="post" action="/checks/run" class="checks-form">
 				<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 				<section class="operation-section">
-					<div class="section-title"><div><div class="eyebrow">OPTIONAL · CORE API</div><h2>GET-Endpunkte auswählen</h2></div></div>
-					<p class="checks-hint">Erreichbarkeit, anonymer Authentifizierungstest, read-Scope und <code>/api/v1/info</code> werden immer geprüft. Pfadwerte bleiben lokal im Arbeitsspeicher; ohne erforderlichen Wert wird der Endpunkt als NOT TESTED markiert. Schreibende Operationen und PMSS Extra sind ausgeschlossen.</p>
+					<div class="section-title"><div><div class="eyebrow">OPTIONAL · CORE API</div><h2>Select GET endpoints</h2></div></div>
+					<p class="checks-hint">Availability, anonymous authentication, the <code>read</code> scope, and <code>/api/v1/info</code> are always checked. Path values remain in local memory; endpoints missing a required value are marked NOT TESTED. Write operations and PMSS Extra are excluded.</p>
 					{{range .Operations}}
 						{{$operation := .}}
 						<article class="operation-card check-operation">
 							<label class="check-operation-title"><input type="checkbox" name="operation_id" value="{{.ID}}" {{if index $.Selected .ID}}checked{{end}}><span><span class="method-badge method-GET">GET</span><code class="operation-path">{{.Path}}</code><strong>{{.Summary}}</strong></span></label>
-							{{if .Parameters}}<div class="parameter-grid">{{range .Parameters}}{{$name := operationInputName $operation.ID .FormKey}}<label class="parameter-field" for="{{operationInputID $operation.ID .FormKey}}"><span>{{.Name}} <small>{{.In}}{{if .Required}} · erforderlich{{end}}</small></span><input id="{{operationInputID $operation.ID .FormKey}}" name="{{$name}}" type="text" value="{{index $.Values $name}}" placeholder="{{if .Required}}Wert eingeben{{else}}Optional{{end}}">{{if isPath .In}}<small>Sonderzeichen wie Leerzeichen testen die URL-Kodierung.</small>{{end}}</label>{{end}}</div>{{end}}
+							{{if .Parameters}}<div class="parameter-grid">{{range .Parameters}}{{$name := operationInputName $operation.ID .FormKey}}<label class="parameter-field" for="{{operationInputID $operation.ID .FormKey}}"><span>{{.Name}} <small>{{.In}}{{if .Required}} · required{{end}}</small></span><input id="{{operationInputID $operation.ID .FormKey}}" name="{{$name}}" type="text" value="{{index $.Values $name}}" placeholder="{{if .Required}}Enter a value{{else}}Optional{{end}}">{{if isPath .In}}<small>Special characters such as spaces test URL encoding.</small>{{end}}</label>{{end}}</div>{{end}}
 						</article>
-					{{else}}<section class="info-panel"><p>Keine ausführbaren Core-GET-Endpunkte vorhanden.</p></section>{{end}}
+					{{else}}<section class="info-panel"><p>No executable Core GET endpoints available.</p></section>{{end}}
 				</section>
-				<button class="login-button execute-button" type="submit" {{if not .Configured}}disabled{{end}}>Read-only-Prüfungen starten</button>
+				<button class="login-button execute-button" type="submit" {{if not .Configured}}disabled{{end}}>Run read-only checks</button>
 			</form>
-			<footer class="page-footer">PMSS API Tester <span>·</span> Version 1 <span>·</span> Ergebnisse werden nicht gespeichert</footer>
+			<footer class="page-footer">PMSS API Tester <span>·</span> Version 1 <span>·</span> Results are not saved</footer>
 		</div>
 	</main>
 </div>
@@ -169,7 +169,7 @@ func handleChecksRun(
 	data := checksData(cfg, authService, operations, r)
 	r.Body = http.MaxBytesReader(w, r.Body, 32<<10)
 	if err := r.ParseForm(); err != nil {
-		data.Results = []checkResult{{Name: "Prüfanfrage", Status: "FAIL", Detail: fmt.Sprintf("Ungültige Anfrage: %v", err)}}
+		data.Results = []checkResult{{Name: "Check request", Status: "FAIL", Detail: fmt.Sprintf("Invalid request: %v", err)}}
 		renderChecks(w, data, http.StatusBadRequest)
 		return
 	}
@@ -184,14 +184,14 @@ func handleChecksRun(
 	}
 	session, _ := authService.Session(r)
 	if session != nil && !authService.ValidateCSRF(r, r.PostForm.Get("csrf_token")) {
-		data.Results = []checkResult{{Name: "CSRF-Prüfung", Status: "BLOCKED", Detail: "CSRF-Token fehlt oder ist ungültig. Lade die Seite neu."}}
+		data.Results = []checkResult{{Name: "CSRF check", Status: "BLOCKED", Detail: "CSRF token is missing or invalid. Reload the page."}}
 		renderChecks(w, data, http.StatusForbidden)
 		return
 	}
 	if client == nil {
 		data.Results = []checkResult{
-			{Name: "Zielsystem", Status: "BLOCKED", Detail: "Das PMSS-Zielsystem ist nicht konfiguriert."},
-			{Name: "Geschützte Core-Checks", Status: "BLOCKED", Detail: "Ohne Zielsystem wurden keine API-Aufrufe ausgeführt."},
+			{Name: "Target system", Status: "BLOCKED", Detail: "The PMSS target system is not configured."},
+			{Name: "Protected Core checks", Status: "BLOCKED", Detail: "No API requests were made because no target system is configured."},
 		}
 		renderChecks(w, data, http.StatusOK)
 		return
@@ -205,12 +205,12 @@ func handleChecksRun(
 
 	if session == nil {
 		data.Results = append(data.Results,
-			checkResult{Name: "read-Berechtigung", Status: "BLOCKED", Detail: "Nicht angemeldet; geschützte API-Aufrufe wurden nicht ausgeführt."},
-			checkResult{Name: "GET /api/v1/info", Status: "BLOCKED", Detail: "Eine angemeldete Sitzung mit read-Scope ist erforderlich."},
+			checkResult{Name: "read permission", Status: "BLOCKED", Detail: "Not signed in; no protected API requests were made."},
+			checkResult{Name: "GET /api/v1/info", Status: "BLOCKED", Detail: "A signed-in session with the read scope is required."},
 		)
 		for _, operation := range data.Operations {
 			if data.Selected[operation.ID] {
-				data.Results = append(data.Results, checkResult{Name: operation.Method + " " + operation.Path, Status: "BLOCKED", Detail: "Eine angemeldete Sitzung mit read-Scope ist erforderlich."})
+				data.Results = append(data.Results, checkResult{Name: operation.Method + " " + operation.Path, Status: "BLOCKED", Detail: "A signed-in session with the read scope is required."})
 			}
 		}
 		renderChecks(w, data, http.StatusOK)
@@ -218,21 +218,21 @@ func handleChecksRun(
 	}
 	if !session.HasReadScope {
 		data.Results = append(data.Results,
-			checkResult{Name: "read-Berechtigung", Status: "BLOCKED", Detail: "Der Token-Austausch hat keinen read-Scope geliefert."},
-			checkResult{Name: "GET /api/v1/info", Status: "BLOCKED", Detail: "Ohne read-Scope wird kein geschützter Request gesendet."},
+			checkResult{Name: "read permission", Status: "BLOCKED", Detail: "Token exchange did not return the read scope."},
+			checkResult{Name: "GET /api/v1/info", Status: "BLOCKED", Detail: "No protected request is sent without the read scope."},
 		)
 		for _, operation := range data.Operations {
 			if data.Selected[operation.ID] {
-				data.Results = append(data.Results, checkResult{Name: operation.Method + " " + operation.Path, Status: "BLOCKED", Detail: "Ohne read-Scope wird kein geschützter Request gesendet."})
+				data.Results = append(data.Results, checkResult{Name: operation.Method + " " + operation.Path, Status: "BLOCKED", Detail: "No protected request is sent without the read scope."})
 			}
 		}
 		renderChecks(w, data, http.StatusOK)
 		return
 	}
-	data.Results = append(data.Results, checkResult{Name: "read-Berechtigung", Status: "PASS", Detail: "Der serverseitige Token-Austausch enthält den erforderlichen read-Scope."})
+	data.Results = append(data.Results, checkResult{Name: "read permission", Status: "PASS", Detail: "The server-side token exchange includes the required read scope."})
 	token, ok := authService.PMSSAccessToken(r)
 	if !ok {
-		data.Results = append(data.Results, checkResult{Name: "GET /api/v1/info", Status: "BLOCKED", Detail: "Der PMSS-Zugriffstoken ist nicht verfügbar."})
+		data.Results = append(data.Results, checkResult{Name: "GET /api/v1/info", Status: "BLOCKED", Detail: "The PMSS access token is not available."})
 	} else {
 		info := operationsByID["getInfo"]
 		result, err := client.Execute(ctx, info, nil, token)
@@ -241,7 +241,7 @@ func handleChecksRun(
 		if infoResult.Status == "PASS" {
 			data.Results = append(data.Results, evaluateAPIVersion(result.Body))
 		} else {
-			data.Results = append(data.Results, checkResult{Name: "API-Version", Status: "BLOCKED", Detail: "Die API-Version konnte ohne erfolgreiche /api/v1/info-Antwort nicht geprüft werden."})
+			data.Results = append(data.Results, checkResult{Name: "API version", Status: "BLOCKED", Detail: "The API version could not be checked without a successful /api/v1/info response."})
 		}
 	}
 	for _, operation := range data.Operations {
@@ -261,7 +261,7 @@ func handleChecksRun(
 			}
 		}
 		if missingRequired {
-			data.Results = append(data.Results, checkResult{Name: "GET " + operation.Path, Status: "NOT TESTED", Detail: "Mindestens ein erforderlicher Pfad- oder Query-Parameter fehlt."})
+			data.Results = append(data.Results, checkResult{Name: "GET " + operation.Path, Status: "NOT TESTED", Detail: "At least one required path or query parameter is missing."})
 			continue
 		}
 		result, err := client.Execute(ctx, operation, values, token)
@@ -273,11 +273,11 @@ func handleChecksRun(
 			}
 			escaped := url.PathEscape(value)
 			if escaped == value {
-				data.Results = append(data.Results, checkResult{Name: "URL-Kodierung " + operation.Path, Status: "NOT TESTED", Detail: "Der Pfadwert enthält keine Zeichen, die kodiert werden müssen. Verwende z. B. ein Leerzeichen für diesen Check."})
+				data.Results = append(data.Results, checkResult{Name: "URL encoding " + operation.Path, Status: "NOT TESTED", Detail: "The path value contains no characters that need encoding. For example, use a space for this check."})
 			} else if err == nil && result.RequestURL != "" && strings.Contains(result.RequestURL, escaped) {
-				data.Results = append(data.Results, checkResult{Name: "URL-Kodierung " + operation.Path, Status: "PASS", Detail: "Der Pfadparameter wurde als einzelnes URL-Segment kodiert."})
+				data.Results = append(data.Results, checkResult{Name: "URL encoding " + operation.Path, Status: "PASS", Detail: "The path parameter was encoded as a single URL segment."})
 			} else {
-				data.Results = append(data.Results, checkResult{Name: "URL-Kodierung " + operation.Path, Status: "FAIL", Detail: "Der kodierte Pfadparameter ist in der gesendeten Request-URL nicht vorhanden."})
+				data.Results = append(data.Results, checkResult{Name: "URL encoding " + operation.Path, Status: "FAIL", Detail: "The encoded path parameter is not present in the request URL."})
 			}
 		}
 	}
@@ -288,55 +288,55 @@ func runHealthCheck(ctx context.Context, client *pmss.Client) checkResult {
 	operation := openapi.Operation{ID: "healthz", Method: http.MethodGet, Path: "/healthz"}
 	result, err := client.ExecuteWithoutToken(ctx, operation, nil)
 	if err != nil {
-		return checkResult{Name: "Erreichbarkeit · GET /healthz", Status: "FAIL", Detail: err.Error()}
+		return checkResult{Name: "Availability · GET /healthz", Status: "FAIL", Detail: err.Error()}
 	}
 	if result.Error != "" {
-		return checkResult{Name: "Erreichbarkeit · GET /healthz", Status: "FAIL", Detail: result.Error}
+		return checkResult{Name: "Availability · GET /healthz", Status: "FAIL", Detail: result.Error}
 	}
 	if result.StatusCode != http.StatusOK {
-		return checkResult{Name: "Erreichbarkeit · GET /healthz", Status: "FAIL", Detail: fmt.Sprintf("Erwartet HTTP 200, erhalten HTTP %d.", result.StatusCode)}
+		return checkResult{Name: "Availability · GET /healthz", Status: "FAIL", Detail: fmt.Sprintf("Expected HTTP 200, received HTTP %d.", result.StatusCode)}
 	}
 	var body struct {
 		Status string `json:"status"`
 	}
 	if err := json.Unmarshal([]byte(result.Body), &body); err != nil || body.Status != "ok" {
-		return checkResult{Name: "Erreichbarkeit · GET /healthz", Status: "FAIL", Detail: "HTTP 200 erhalten, aber der JSON-Body enthält nicht status=ok."}
+		return checkResult{Name: "Availability · GET /healthz", Status: "FAIL", Detail: "Received HTTP 200, but the JSON body does not contain status=ok."}
 	}
-	return checkResult{Name: "Erreichbarkeit · GET /healthz", Status: "PASS", Detail: "HTTP 200 und JSON status=ok."}
+	return checkResult{Name: "Availability · GET /healthz", Status: "PASS", Detail: "HTTP 200 and JSON status=ok."}
 }
 
 func runAuthenticationCheck(ctx context.Context, client *pmss.Client, info openapi.Operation) checkResult {
 	result, err := client.ExecuteWithoutToken(ctx, info, nil)
 	if err != nil {
-		return checkResult{Name: "Authentifizierung · Token fehlt", Status: "FAIL", Detail: err.Error()}
+		return checkResult{Name: "Authentication · Missing token", Status: "FAIL", Detail: err.Error()}
 	}
 	if result.Error != "" {
-		return checkResult{Name: "Authentifizierung · Token fehlt", Status: "FAIL", Detail: result.Error}
+		return checkResult{Name: "Authentication · Missing token", Status: "FAIL", Detail: result.Error}
 	}
 	if result.StatusCode != http.StatusUnauthorized {
-		return checkResult{Name: "Authentifizierung · Token fehlt", Status: "FAIL", Detail: fmt.Sprintf("Erwartet HTTP 401 ohne Token, erhalten HTTP %d.", result.StatusCode)}
+		return checkResult{Name: "Authentication · Missing token", Status: "FAIL", Detail: fmt.Sprintf("Expected HTTP 401 without a token, received HTTP %d.", result.StatusCode)}
 	}
 	if err := validateProblemDetails(result, http.StatusUnauthorized, "invalid_token"); err != nil {
-		return checkResult{Name: "Authentifizierung · Token fehlt", Status: "FAIL", Detail: err.Error()}
+		return checkResult{Name: "Authentication · Missing token", Status: "FAIL", Detail: err.Error()}
 	}
-	return checkResult{Name: "Authentifizierung · Token fehlt", Status: "PASS", Detail: "Anonymer Request wurde mit HTTP 401 und RFC 9457 invalid_token abgewiesen."}
+	return checkResult{Name: "Authentication · Missing token", Status: "PASS", Detail: "The anonymous request was rejected with HTTP 401 and RFC 9457 invalid_token."}
 }
 
 func runInvalidTokenCheck(ctx context.Context, client *pmss.Client, info openapi.Operation) checkResult {
 	result, err := client.Execute(ctx, info, nil, "pmss-api-tester-invalid-token")
 	if err != nil {
-		return checkResult{Name: "Authentifizierung · Ungültiger Token", Status: "FAIL", Detail: err.Error()}
+		return checkResult{Name: "Authentication · Invalid token", Status: "FAIL", Detail: err.Error()}
 	}
 	if result.Error != "" {
-		return checkResult{Name: "Authentifizierung · Ungültiger Token", Status: "FAIL", Detail: result.Error}
+		return checkResult{Name: "Authentication · Invalid token", Status: "FAIL", Detail: result.Error}
 	}
 	if result.StatusCode != http.StatusUnauthorized {
-		return checkResult{Name: "Authentifizierung · Ungültiger Token", Status: "FAIL", Detail: fmt.Sprintf("Erwartet HTTP 401 mit ungültigem Token, erhalten HTTP %d.", result.StatusCode)}
+		return checkResult{Name: "Authentication · Invalid token", Status: "FAIL", Detail: fmt.Sprintf("Expected HTTP 401 with an invalid token, received HTTP %d.", result.StatusCode)}
 	}
 	if err := validateProblemDetails(result, http.StatusUnauthorized, "invalid_token"); err != nil {
-		return checkResult{Name: "Authentifizierung · Ungültiger Token", Status: "FAIL", Detail: err.Error()}
+		return checkResult{Name: "Authentication · Invalid token", Status: "FAIL", Detail: err.Error()}
 	}
-	return checkResult{Name: "Authentifizierung · Ungültiger Token", Status: "PASS", Detail: "Ungültiger Bearer-Token wurde mit HTTP 401 und RFC 9457 invalid_token abgewiesen."}
+	return checkResult{Name: "Authentication · Invalid token", Status: "PASS", Detail: "The invalid bearer token was rejected with HTTP 401 and RFC 9457 invalid_token."}
 }
 
 func evaluateAPIVersion(body string) checkResult {
@@ -348,20 +348,20 @@ func evaluateAPIVersion(body string) checkResult {
 		} `json:"implementation"`
 	}
 	if err := json.Unmarshal([]byte(body), &info); err != nil {
-		return checkResult{Name: "API-Version", Status: "FAIL", Detail: fmt.Sprintf("Info-Antwort konnte nicht gelesen werden: %v", err)}
+		return checkResult{Name: "API version", Status: "FAIL", Detail: fmt.Sprintf("Could not read the info response: %v", err)}
 	}
 	parts := strings.Split(info.APIVersion, ".")
 	if len(parts) != 2 || parts[0] != "1" {
-		return checkResult{Name: "API-Version", Status: "FAIL", Detail: fmt.Sprintf("Nicht unterstützte API-Version %q; erwartet wird Hauptversion 1.", info.APIVersion)}
+		return checkResult{Name: "API version", Status: "FAIL", Detail: fmt.Sprintf("Unsupported API version %q; expected major version 1.", info.APIVersion)}
 	}
 	if _, err := strconv.Atoi(parts[1]); err != nil {
-		return checkResult{Name: "API-Version", Status: "FAIL", Detail: fmt.Sprintf("API-Version %q ist nicht MAJOR.MINOR.", info.APIVersion)}
+		return checkResult{Name: "API version", Status: "FAIL", Detail: fmt.Sprintf("API version %q is not in MAJOR.MINOR format.", info.APIVersion)}
 	}
 	implementation := strings.TrimSpace(info.Implementation.Name + " " + info.Implementation.Version)
 	if implementation == "" {
-		implementation = "unbekannte Implementierung"
+		implementation = "unknown implementation"
 	}
-	return checkResult{Name: "API-Version", Status: "PASS", Detail: fmt.Sprintf("API-Version %s · Implementierung %s.", info.APIVersion, implementation)}
+	return checkResult{Name: "API version", Status: "PASS", Detail: fmt.Sprintf("API version %s · implementation %s.", info.APIVersion, implementation)}
 }
 
 func evaluateResponse(name string, operation openapi.Operation, result pmss.Result, err error, checkInfoHeaders bool) checkResult {
@@ -369,65 +369,65 @@ func evaluateResponse(name string, operation openapi.Operation, result pmss.Resu
 		return checkResult{Name: name, Status: "FAIL", Detail: err.Error()}
 	}
 	if result.Error != "" {
-		return checkResult{Name: name, Status: "FAIL", Detail: "Request fehlgeschlagen: " + result.Error}
+		return checkResult{Name: name, Status: "FAIL", Detail: "Request failed: " + result.Error}
 	}
 	if result.StatusCode == http.StatusServiceUnavailable {
 		if problemErr := validateProblemDetails(result, http.StatusServiceUnavailable, "broker_unavailable"); problemErr != nil {
 			return checkResult{Name: name, Status: "FAIL", Detail: "503 broker_unavailable: " + problemErr.Error()}
 		}
-		return checkResult{Name: name, Status: "FAIL", Detail: "503 broker_unavailable: Der Broker war nicht erreichbar; der Check ist fehlgeschlagen."}
+		return checkResult{Name: name, Status: "FAIL", Detail: "503 broker_unavailable: The broker was unreachable; the check failed."}
 	}
 	if result.StatusCode == http.StatusGatewayTimeout {
 		if problemErr := validateProblemDetails(result, http.StatusGatewayTimeout, "broker_timeout"); problemErr != nil {
 			return checkResult{Name: name, Status: "FAIL", Detail: "504 broker_timeout: " + problemErr.Error()}
 		}
-		return checkResult{Name: name, Status: "FAIL", Detail: "504 broker_timeout: Broker-Zustand unbekannt. Es wurde kein automatischer Retry ausgeführt."}
+		return checkResult{Name: name, Status: "FAIL", Detail: "504 broker_timeout: Broker state is unknown. No automatic retry was performed."}
 	}
 	if result.StatusCode == http.StatusNotFound && expectsNotFound(operation) {
 		if problemErr := validateProblemDetails(result, http.StatusNotFound, ""); problemErr != nil {
 			return checkResult{Name: name, Status: "FAIL", Detail: problemErr.Error()}
 		}
-		return checkResult{Name: name, Status: "PASS", Detail: "Erwartetes HTTP 404 mit konsistenten RFC 9457 Problem Details."}
+		return checkResult{Name: name, Status: "PASS", Detail: "Received the expected HTTP 404 with consistent RFC 9457 Problem Details."}
 	}
 	if result.StatusCode < 200 || result.StatusCode >= 300 {
-		detail := fmt.Sprintf("Unerwarteter HTTP-Status %d.", result.StatusCode)
+		detail := fmt.Sprintf("Unexpected HTTP status %d.", result.StatusCode)
 		if strings.HasPrefix(strings.ToLower(contentType(result.Headers)), "application/problem+json") {
 			if err := validateProblemDetails(result, result.StatusCode, ""); err != nil {
 				detail += " RFC 9457: " + err.Error()
 			} else {
-				detail += " RFC 9457 Problem Details sind konsistent."
+				detail += " RFC 9457 Problem Details are consistent."
 			}
 		}
 		return checkResult{Name: name, Status: "FAIL", Detail: detail}
 	}
 	if result.SchemaError != "" {
-		return checkResult{Name: name, Status: "FAIL", Detail: "Antwortschema ungültig: " + result.SchemaError}
+		return checkResult{Name: name, Status: "FAIL", Detail: "Invalid response schema: " + result.SchemaError}
 	}
 	if !result.SchemaChecked {
-		return checkResult{Name: name, Status: "NOT TESTED", Detail: "HTTP-Status erfolgreich, aber für diesen Status ist kein Response-Schema definiert."}
+		return checkResult{Name: name, Status: "NOT TESTED", Detail: "HTTP status was successful, but no response schema is defined for this status."}
 	}
 	if !result.SchemaValid {
-		return checkResult{Name: name, Status: "FAIL", Detail: "Die Antwort entspricht nicht dem OpenAPI-Response-Schema."}
+		return checkResult{Name: name, Status: "FAIL", Detail: "The response does not match the OpenAPI response schema."}
 	}
 	if checkInfoHeaders {
 		if !hasHeader(result.Headers, "Cache-Control", "no-store") {
-			return checkResult{Name: name, Status: "FAIL", Detail: "Response-Schema gültig, aber der vorgeschriebene Cache-Control: no-store Header fehlt."}
+			return checkResult{Name: name, Status: "FAIL", Detail: "Response schema is valid, but the required Cache-Control: no-store header is missing."}
 		}
 	}
 	if requiresETag(operation) {
 		etag := headerValue(result.Headers, "ETag")
 		if !strongETag.MatchString(etag) {
-			return checkResult{Name: name, Status: "FAIL", Detail: "Response-Schema gültig, aber der erforderliche starke ETag-Header fehlt oder hat ein ungültiges Format."}
+			return checkResult{Name: name, Status: "FAIL", Detail: "Response schema is valid, but the required strong ETag header is missing or has an invalid format."}
 		}
 	}
-	return checkResult{Name: name, Status: "PASS", Detail: fmt.Sprintf("HTTP %d, JSON-Response-Schema gültig%s.", result.StatusCode, headerCheckDetail(operation, checkInfoHeaders))}
+	return checkResult{Name: name, Status: "PASS", Detail: fmt.Sprintf("HTTP %d, JSON response schema is valid%s.", result.StatusCode, headerCheckDetail(operation, checkInfoHeaders))}
 }
 
 func validateProblemDetails(result pmss.Result, expectedStatus int, expectedCode string) error {
 	contentTypeValue := contentType(result.Headers)
 	mediaType, _, err := mime.ParseMediaType(contentTypeValue)
 	if err != nil || mediaType != "application/problem+json" {
-		return fmt.Errorf("Content-Type ist %q statt application/problem+json", contentTypeValue)
+		return fmt.Errorf("Content-Type is %q instead of application/problem+json", contentTypeValue)
 	}
 	var problem struct {
 		Status int    `json:"status"`
@@ -435,16 +435,16 @@ func validateProblemDetails(result pmss.Result, expectedStatus int, expectedCode
 		Title  string `json:"title"`
 	}
 	if err := json.Unmarshal([]byte(result.Body), &problem); err != nil {
-		return fmt.Errorf("Problem-Body ist kein gültiges JSON: %w", err)
+		return fmt.Errorf("problem body is not valid JSON: %w", err)
 	}
 	if problem.Status != expectedStatus || result.StatusCode != expectedStatus {
-		return fmt.Errorf("Problem-Status %d stimmt nicht mit HTTP %d überein (erwartet %d)", problem.Status, result.StatusCode, expectedStatus)
+		return fmt.Errorf("problem status %d does not match HTTP %d (expected %d)", problem.Status, result.StatusCode, expectedStatus)
 	}
 	if problem.Title == "" || problem.Code == "" {
-		return fmt.Errorf("Problem Details enthalten kein title- oder code-Feld")
+		return fmt.Errorf("Problem Details do not contain a title or code field")
 	}
 	if expectedCode != "" && problem.Code != expectedCode {
-		return fmt.Errorf("Problem-Code %q statt %q", problem.Code, expectedCode)
+		return fmt.Errorf("problem code %q instead of %q", problem.Code, expectedCode)
 	}
 	return nil
 }
@@ -463,10 +463,10 @@ func expectsNotFound(operation openapi.Operation) bool {
 
 func headerCheckDetail(operation openapi.Operation, info bool) string {
 	if requiresETag(operation) {
-		return " und gültigem ETag"
+		return " and a valid ETag"
 	}
 	if info {
-		return " und Cache-Control: no-store"
+		return " and Cache-Control: no-store"
 	}
 	return ""
 }
