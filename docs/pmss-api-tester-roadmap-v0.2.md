@@ -191,14 +191,14 @@ Die folgende Liste bildet den geplanten Umfang ab. Die genaue Zuordnung zu einze
 
 ### Phase 1 – Projektgrundlage
 
-- [ ] Neues Go-Projekt und Repository-Struktur anlegen
-- [ ] `net/http` / `ServeMux` als HTTP-Grundlage einrichten
-- [ ] `templ` und HTMX integrieren
-- [ ] TasmoFleet-nahe Layout- und Navigationsstruktur erstellen
-- [ ] Statische Assets in das Binary einbetten
-- [ ] Docker Multi-Stage-Build erstellen
-- [ ] Eigenen Health-Endpunkt des Testers und grundlegende Konfiguration implementieren
-- [ ] Eingebettete OpenAPI-Spezifikation beim Start validieren und bei Fehlern fail-fast beenden
+- [x] Neues Go-Projekt und Repository-Struktur anlegen
+- [x] `net/http` / `ServeMux` als HTTP-Grundlage einrichten
+- [x] `templ` und HTMX integrieren
+- [x] TasmoFleet-nahe Layout- und Navigationsstruktur erstellen
+- [x] Statische Assets in das Binary einbetten
+- [x] Docker Multi-Stage-Build erstellen
+- [x] Eigenen Health-Endpunkt des Testers und grundlegende Konfiguration implementieren
+- [x] Eingebettete OpenAPI-Spezifikation beim Start validieren und bei Fehlern fail-fast beenden
 
 **Ergebnis:** Startfähiger Docker-Prototyp mit Grundgerüst der Oberfläche, geprüftem Konfigurationsstart und eigenem Health-Endpunkt.
 

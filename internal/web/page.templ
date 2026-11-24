@@ -1,0 +1,103 @@
+package web
+
+templ Page() {
+	<!DOCTYPE html>
+	<html lang="de" data-theme="light">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="color-scheme" content="light dark"/>
+			<title>PMSS API Tester</title>
+			<link rel="preload" href="/static/geist-latin.woff2" as="font" type="font/woff2" crossorigin/>
+			<link rel="preload" href="/static/geist-mono-latin.woff2" as="font" type="font/woff2" crossorigin/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			<script src="/static/htmx.min.js" defer></script>
+			<script src="/static/app.js" defer></script>
+		</head>
+		<body>
+			<div class="app-shell">
+				<aside class="sidebar" aria-label="Hauptnavigation">
+					<a class="brand" href="/" aria-label="PMSS API Tester Startseite">
+						<span class="brand-mark" aria-hidden="true">P</span>
+						<span class="brand-copy"><strong>PMSS</strong><small>API Tester</small></span>
+					</a>
+					<div class="nav-caption">WORKSPACE</div>
+					<nav>
+						<a class="nav-item active" href="/" aria-current="page">
+							<span class="nav-icon" aria-hidden="true">▦</span><span>Übersicht</span>
+						</a>
+						<div class="nav-item nav-muted" aria-disabled="true">
+							<span class="nav-icon" aria-hidden="true">⌘</span><span>API Explorer</span><span class="nav-soon">Demnächst</span>
+						</div>
+						<div class="nav-item nav-muted" aria-disabled="true">
+							<span class="nav-icon" aria-hidden="true">✓</span><span>Prüfungen</span><span class="nav-soon">Demnächst</span>
+						</div>
+					</nav>
+					<div class="sidebar-bottom">
+						<div class="sidebar-rule"></div>
+						<div class="version-label">VERSION 1 · READ-ONLY</div>
+					</div>
+				</aside>
+				<main class="main-content">
+					<header class="topbar">
+						<div class="breadcrumbs"><span>PMSS API Tester</span><span class="crumb-separator">/</span><strong>Übersicht</strong></div>
+						<button class="theme-toggle" type="button" aria-label="Farbschema umschalten" title="Farbschema umschalten">
+							<span class="theme-light" aria-hidden="true">☼</span><span class="theme-dark" aria-hidden="true">◐</span>
+						</button>
+					</header>
+					<div class="page-body">
+						<div class="page-heading">
+							<div>
+								<div class="eyebrow">MQTT SECURITY SERVICE</div>
+								<h1>Übersicht</h1>
+								<p class="subtitle">API-Verbindung und Spezifikationsstatus auf einen Blick.</p>
+							</div>
+							<div class="readonly-badge"><span class="lock-icon" aria-hidden="true">▣</span> Read-only</div>
+						</div>
+						<section class="status-grid" aria-label="Systemstatus">
+							<article class="status-card">
+								<div class="card-topline"><span>Tester-Status</span><span class="card-symbol green" aria-hidden="true">●</span></div>
+								<div class="card-value" hx-get="/_ui/backend-status" hx-trigger="load" hx-swap="innerHTML">
+									<span class="loading-dot"></span> Wird geprüft
+								</div>
+								<div class="card-note">Lokaler Anwendungsstatus</div>
+							</article>
+							<article class="status-card">
+								<div class="card-topline"><span>Zielsystem</span><span class="card-symbol blue" aria-hidden="true">◎</span></div>
+								<div class="card-value">Noch nicht konfiguriert</div>
+								<div class="card-note">PMSS-Verbindung folgt in Phase 3</div>
+							</article>
+							<article class="status-card">
+								<div class="card-topline"><span>API-Spezifikation</span><span class="card-symbol blue" aria-hidden="true">⌗</span></div>
+								<div class="card-value">Version 1.0</div>
+								<div class="card-note">OpenAPI 3.2.1 · beim Start validiert</div>
+							</article>
+						</section>
+						<section class="welcome-card">
+							<div class="welcome-copy">
+								<div class="eyebrow">PROJEKTGRUNDLAGE</div>
+								<h2>Bereit für den nächsten Schritt</h2>
+								<p>Die Anwendung läuft, ihre API-Spezifikation ist geprüft und die Oberfläche ist vorbereitet. Als Nächstes folgt die sichere Anmeldung über Keycloak.</p>
+							</div>
+							<div class="welcome-art" aria-hidden="true">
+								<div class="art-ring ring-one"></div><div class="art-ring ring-two"></div>
+								<div class="art-center"><span>API</span><i>✓</i></div>
+								<div class="art-node node-one"></div><div class="art-node node-two"></div><div class="art-node node-three"></div>
+							</div>
+						</section>
+						<section class="info-panel">
+							<div class="panel-heading"><div><div class="eyebrow">SICHERHEITSMODUS</div><h2>Strikt lesend</h2></div><span class="shield-icon" aria-hidden="true">◈</span></div>
+							<p>Version 1 führt ausschließlich lesende API-Aufrufe aus. Schreibende Operationen werden serverseitig gesperrt und sind nicht Teil dieses Prototyps.</p>
+							<div class="panel-footer"><span class="status-indicator"></span> Schreiboperationen sind deaktiviert</div>
+						</section>
+						<footer class="page-footer">PMSS API Tester <span>·</span> Version 1 <span>·</span> TasmoFleet Produktfamilie</footer>
+					</div>
+				</main>
+			</div>
+		</body>
+	</html>
+}
+
+templ BackendStatus() {
+	<span class="inline-status"><span class="status-indicator"></span> Bereit</span>
+}
