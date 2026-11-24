@@ -33,19 +33,31 @@ files are served locally from embedded application assets. Version 1 remains str
 
 ## Keycloak login (Phase 2)
 
-The login is optional until OIDC is configured. For the PMSS integration Keycloak on port 8180,
-configure the existing `tasmofleet-test` client for **Standard Flow**, PKCE with `S256`, and the
-exact redirect URI `http://localhost:8080/auth/callback` and post-logout redirect URI
-`http://localhost:8080/`. Keep the client confidential and enable the token-exchange permission
-for the `phylax-mqtt-security-service` audience. The client must be allowed to request the `read`
-scope. Do not put its secret in source control.
+The login is optional until OIDC is configured. `config/pmss-test-realm.json` defines a dedicated
+confidential `pmss-api-tester` client for the test realm, with Standard Flow, PKCE `S256`, Standard
+Token Exchange and the optional `read` scope. The scope's audience mapper targets
+`phylax-mqtt-security-service`; the tester client cannot request `write`. The configuration requires
+Keycloak 26.2 or newer with Standard Token Exchange enabled.
+
+Import the realm into a **new test realm**, or create the client with the same settings in an existing
+realm. Keycloak's startup realm import skips realms that already exist; changing the JSON alone does
+not update a running realm. Do not overwrite an existing realm just to add this client.
+
+After creating the client, obtain its generated secret under **Clients → pmss-api-tester →
+Credentials** in the Keycloak admin console and place it in an untracked `.env` file. Do not put the
+secret in source control. The supplied realm contains test users and credentials and is intended
+only for an isolated test instance.
+
+The configured redirect URI is `http://localhost:8080/auth/callback` and the post-logout redirect URI
+is `http://localhost:8080/`. If the tester is accessed at another origin, update both URIs on the
+Keycloak client and set `OIDC_CALLBACK_URL` accordingly.
 
 Set these variables in the environment used to start Compose (or in an untracked `.env` file):
 
 ```env
 OIDC_ISSUER_URL=http://192.168.7.39:8180/realms/pmss-test
 OIDC_INTERNAL_URL=
-OIDC_CLIENT_ID=tasmofleet-test
+OIDC_CLIENT_ID=pmss-api-tester
 OIDC_CLIENT_SECRET=<client-secret>
 OIDC_CALLBACK_URL=http://localhost:8080/auth/callback
 OIDC_COOKIE_SECURE=false
@@ -77,6 +89,11 @@ access token expires or after eight hours, whichever comes first; refreshing req
 again. Logout is a CSRF-protected POST and also redirects through Keycloak's end-session endpoint
 when the provider advertises one. A missing `read` scope is shown as `BLOCKED`, not as a successful
 authorization.
+
+To check the integration, sign in with each configured test user and confirm that the tester shows
+the user and `read` access, then execute a GET against a configured PMSS endpoint and log out. Both
+`alice` (with `security-admin`) and `bob` (without it) should have read access; neither should gain
+`write` through this client. The target PMSS service must trust the same issuer and audience.
 
 ## API Explorer (Phase 3)
 

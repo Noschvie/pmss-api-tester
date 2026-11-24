@@ -162,6 +162,31 @@
       "optionalClientScopes": []
     },
     {
+      "clientId": "pmss-api-tester",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "http://192.168.7.39:8080/auth/callback"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://192.168.7.39:8080/",
+        "standard.token.exchange.enabled": "true"
+      },
+      "defaultClientScopes": [
+        "basic"
+      ],
+      "optionalClientScopes": [
+        "read"
+      ]
+    },
+    {
       "clientId": "tasmofleet-test",
       "enabled": true,
       "publicClient": false,
