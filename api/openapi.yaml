@@ -1,1 +1,1451 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Machine-readable form of the interface specification
+# "MQTT Security Service API v1" (v1.0). The Markdown specification is
+# normative; a contradiction between the two is an error in this file.
+#
+# Operations tagged "pmss-extra" (x-pmss-extra: true) are additions of the
+# Phylax MQTT Security Service and not part of the specification.
+# TasmoFleet does not use them.
 
+openapi: 3.2.1
+
+info:
+  title: MQTT Security Service API
+  version: "1.0"
+  summary: REST API for Mosquitto Dynamic Security clients, groups, roles and ACLs.
+  description: |
+    Interface between TasmoFleet and an external MQTT Security Service
+    (specification "MQTT Security Service API v1", v1.0). The Phylax
+    MQTT Security Service (PMSS) is the reference implementation.
+
+    **Normative source** is the Markdown specification. This file describes
+    paths, fields and status codes; the behaviour (ETag rules, unknown
+    state after a timeout, compensation) is described in the specification
+    and referenced in the operations.
+
+    Rules that apply to every operation:
+
+    - Tokens from Keycloak only (`Authorization: Bearer`, security scheme
+      `keycloak`), scope `read` for `GET`, `write` for changes; `write` does
+      not include `read` (spec 2.1).
+    - Unknown request fields → `422` (spec 3.1).
+    - Changes on existing objects need `If-Match` with the current `ETag`:
+      `428` if missing, `412` if different (spec 3.2).
+    - Errors are `application/problem+json` (RFC 9457). Clients evaluate
+      only `status` and `code` and treat unknown codes like their status;
+      new codes may be added within 1.x (spec 3.4, 7).
+    - `503 broker_unavailable`: nothing was sent. `504 broker_timeout`: the
+      state is unknown, read again instead of retrying (spec 3.7).
+  license:
+    name: AGPL-3.0-or-later
+    identifier: AGPL-3.0-or-later
+  x-specification-version: "1.0"
+
+servers:
+  - url: https://pmss.example.org
+    description: Example; behind a TLS-terminating reverse proxy
+
+security:
+  - keycloak: [read]
+
+tags:
+  - name: info
+    description: Service information (spec 4.1)
+  - name: export
+    description: Actual state of all managed objects (spec 4.2)
+  - name: clients
+  - name: groups
+  - name: roles
+  - name: pmss-extra
+    kind: badge
+    summary: PMSS extra
+    description: |
+      Additions of PMSS (design 7.3), **not part of the specification**.
+      TasmoFleet does not use them. Every such operation has
+      `x-pmss-extra: true`.
+  - name: health
+
+paths:
+  /healthz:
+    get:
+      tags: [health, pmss-extra]
+      x-pmss-extra: true
+      operationId: healthz
+      summary: Container health check
+      description: Internal, without token and without version in the path (spec 7). Contains no sensitive information.
+      security: []
+      responses:
+        "200":
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { const: ok }
+
+  /api/v1/info:
+    get:
+      tags: [info]
+      operationId: getInfo
+      summary: API version, prefixes, marker, password policy, limits
+      description: Mandatory endpoint (S-2). TasmoFleet reads it before the first export of a session.
+      responses:
+        "200":
+          description: Service information
+          headers:
+            Cache-Control: { $ref: "#/components/headers/NoStore" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Info" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/InsufficientScope" }
+
+  /api/v1/export:
+    get:
+      tags: [export]
+      operationId: getExport
+      summary: All managed clients, groups and roles
+      description: |
+        Unmanaged objects (admins, `legacy-shared-user`, `role_legacy`) are
+        not contained. Sorted by Unicode code points; the order has no
+        meaning, compare by key (S-3).
+      responses:
+        "200":
+          description: Export
+          headers:
+            Cache-Control: { $ref: "#/components/headers/NoStore" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Export" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/InsufficientScope" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/clients:
+    get:
+      tags: [clients, pmss-extra]
+      x-pmss-extra: true
+      operationId: listClients
+      summary: All clients, managed and unmanaged
+      responses:
+        "200":
+          description: Clients
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [clients]
+                properties:
+                  clients:
+                    type: array
+                    items: { $ref: "#/components/schemas/ClientView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/InsufficientScope" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+    post:
+      tags: [clients]
+      operationId: createClient
+      summary: Create a client, optionally with roles, groups and password
+      description: |
+        Sets the marker `managed-by: pmss` in `textdescription`. Without
+        `password` the service generates one and returns it once. Certificate
+        clients (`CN=…`) never have a password. An unknown role or group
+        deletes the client again (compensation, spec 4.3).
+      security:
+        - keycloak: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClientCreate" }
+      responses:
+        "201":
+          description: Client created
+          headers:
+            Location: { $ref: "#/components/headers/Location" }
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/NoStore" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClientCreated" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/UnprocessableClient" }
+        "502": { $ref: "#/components/responses/BrokerErrorOrPartial" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/clients/{username}:
+    parameters:
+      - $ref: "#/components/parameters/Username"
+    get:
+      tags: [clients]
+      operationId: getClient
+      summary: One client with ETag
+      description: Also unmanaged clients (`managed` is false).
+      responses:
+        "200":
+          description: Client
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClientView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/InsufficientScope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+    delete:
+      tags: [clients]
+      operationId: deleteClient
+      summary: Delete a client (also used to lock it)
+      description: |
+        The broker drops an open connection of the client. Names of locked
+        clients are not reused; successors get a running number (spec 4.5).
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204": { description: Client deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+    patch:
+      tags: [clients, pmss-extra]
+      x-pmss-extra: true
+      operationId: patchClient
+      summary: Change the textname
+      description: "`textdescription` carries the marker and cannot be changed (`422`, error code `read_only`)."
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [textname]
+              properties:
+                textname: { type: string }
+                textdescription:
+                  type: string
+                  description: Not changeable; always refused with `422`.
+      responses:
+        "200": { $ref: "#/components/responses/ClientChanged" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/clients/{username}/password:
+    parameters:
+      - $ref: "#/components/parameters/Username"
+    post:
+      tags: [clients]
+      operationId: setClientPassword
+      summary: New password, generated or given
+      description: |
+        Empty body `{}`: the service generates the password. The ETag does
+        not change (S-5). Without an answer from the broker always
+        `504`, because a password change cannot be read back (spec 3.7).
+        TasmoFleet allows only one running password change per client.
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordRequest" }
+      responses:
+        "200":
+          description: Password set
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/NoStore" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PasswordChanged" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/clients/{username}/enable:
+    parameters:
+      - $ref: "#/components/parameters/Username"
+    post:
+      tags: [clients, pmss-extra]
+      x-pmss-extra: true
+      operationId: enableClient
+      summary: Enable a password client
+      description: Certificate clients (`CN=…`) → `409 certificate_client` (open point 8.8, variant A). Same state → `200` without a broker command.
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody: { $ref: "#/components/requestBodies/EmptyObject" }
+      responses:
+        "200": { $ref: "#/components/responses/ClientChanged" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/clients/{username}/disable:
+    parameters:
+      - $ref: "#/components/parameters/Username"
+    post:
+      tags: [clients, pmss-extra]
+      x-pmss-extra: true
+      operationId: disableClient
+      summary: Disable a password client
+      description: |
+        Mosquitto checks `disabled` only at a password login. Certificate
+        clients (`CN=…`) → `409 certificate_client` (open point 8.8,
+        variant A); lock them with `DELETE`. Same state → `200` without a
+        broker command.
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody: { $ref: "#/components/requestBodies/EmptyObject" }
+      responses:
+        "200": { $ref: "#/components/responses/ClientChanged" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/clients/{username}/roles:
+    parameters:
+      - $ref: "#/components/parameters/Username"
+    post:
+      tags: [clients]
+      operationId: addClientRole
+      summary: Assign a role to a client
+      description: "`If-Match` and the new ETag belong to the client (S-4). The response is the changed client (S-10)."
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoleAssignment" }
+      responses:
+        "200": { $ref: "#/components/responses/ClientChanged" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/UnprocessableAssignment" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/clients/{username}/roles/{role}:
+    parameters:
+      - $ref: "#/components/parameters/Username"
+      - $ref: "#/components/parameters/Role"
+    delete:
+      tags: [clients]
+      operationId: removeClientRole
+      summary: Remove a role from a client
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204": { $ref: "#/components/responses/AssignmentRemoved" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/groups:
+    get:
+      tags: [groups, pmss-extra]
+      x-pmss-extra: true
+      operationId: listGroups
+      summary: All groups, managed and unmanaged
+      responses:
+        "200":
+          description: Groups
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [groups]
+                properties:
+                  groups:
+                    type: array
+                    items: { $ref: "#/components/schemas/GroupView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/InsufficientScope" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+    post:
+      tags: [groups]
+      operationId: createGroup
+      summary: Create a group
+      description: The name needs the group prefix from `GET /api/v1/info` (`tf_`).
+      security:
+        - keycloak: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GroupCreate" }
+      responses:
+        "201":
+          description: Group created
+          headers:
+            Location: { $ref: "#/components/headers/Location" }
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupChange" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/groups/{group}:
+    parameters:
+      - $ref: "#/components/parameters/Group"
+    get:
+      tags: [groups]
+      operationId: getGroup
+      summary: One group with ETag
+      responses:
+        "200":
+          description: Group
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/InsufficientScope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+    delete:
+      tags: [groups]
+      operationId: deleteGroup
+      summary: Delete a group
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204": { description: Group deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/groups/{group}/clients:
+    parameters:
+      - $ref: "#/components/parameters/Group"
+    post:
+      tags: [groups]
+      operationId: addGroupClient
+      summary: Add a client to a group
+      description: "Membership belongs to the group: `If-Match` and the new ETag are those of the group; the ETag of the client stays (S-4)."
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [username]
+              properties:
+                username: { type: string, minLength: 1 }
+      responses:
+        "200": { $ref: "#/components/responses/GroupChanged" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/groups/{group}/clients/{username}:
+    parameters:
+      - $ref: "#/components/parameters/Group"
+      - $ref: "#/components/parameters/Username"
+    delete:
+      tags: [groups]
+      operationId: removeGroupClient
+      summary: Remove a client from a group
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204": { $ref: "#/components/responses/AssignmentRemoved" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/groups/{group}/roles:
+    parameters:
+      - $ref: "#/components/parameters/Group"
+    post:
+      tags: [groups]
+      operationId: addGroupRole
+      summary: Assign a role to a group
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoleAssignment" }
+      responses:
+        "200": { $ref: "#/components/responses/GroupChanged" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/UnprocessableAssignment" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/groups/{group}/roles/{role}:
+    parameters:
+      - $ref: "#/components/parameters/Group"
+      - $ref: "#/components/parameters/Role"
+    delete:
+      tags: [groups]
+      operationId: removeGroupRole
+      summary: Remove a role from a group
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204": { $ref: "#/components/responses/AssignmentRemoved" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/roles:
+    get:
+      tags: [roles, pmss-extra]
+      x-pmss-extra: true
+      operationId: listRoles
+      summary: All roles, managed and unmanaged
+      responses:
+        "200":
+          description: Roles
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [roles]
+                properties:
+                  roles:
+                    type: array
+                    items: { $ref: "#/components/schemas/RoleView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/InsufficientScope" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+    post:
+      tags: [roles]
+      operationId: createRole
+      summary: Create a role, optionally with ACLs
+      description: |
+        The name needs the role prefix (`tf_`). ACLs are checked like for
+        `PUT …/acls`, sent in one `createRole` and read back; on a
+        difference the role is deleted again (`500 readback_mismatch`,
+        S-6).
+      security:
+        - keycloak: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoleCreate" }
+      responses:
+        "201":
+          description: Role created
+          headers:
+            Location: { $ref: "#/components/headers/Location" }
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoleChange" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "500": { $ref: "#/components/responses/ReadbackMismatch" }
+        "502": { $ref: "#/components/responses/BrokerErrorOrPartial" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/roles/{role}:
+    parameters:
+      - $ref: "#/components/parameters/Role"
+    get:
+      tags: [roles]
+      operationId: getRole
+      summary: One role with ACLs and ETag
+      responses:
+        "200":
+          description: Role
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoleView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/InsufficientScope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+    delete:
+      tags: [roles]
+      operationId: deleteRole
+      summary: Delete a role
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204": { description: Role deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+  /api/v1/roles/{role}/acls:
+    parameters:
+      - $ref: "#/components/parameters/Role"
+    put:
+      tags: [roles]
+      operationId: replaceRoleACLs
+      summary: Replace the whole ACL list of a role
+      description: One `modifyRole`, then the role is read back and compared (SEC-30, spec 4.8).
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [acls]
+              properties:
+                acls:
+                  type: array
+                  items: { $ref: "#/components/schemas/ACLInput" }
+      responses:
+        "200": { $ref: "#/components/responses/RoleChanged" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "500": { $ref: "#/components/responses/ReadbackMismatch" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+    post:
+      tags: [roles, pmss-extra]
+      x-pmss-extra: true
+      operationId: addRoleACL
+      summary: Add one ACL
+      description: The same `acltype` and `topic` again → `409 already_exists`. Response is the whole role; warning pointers refer to its ACL list.
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ACLInput" }
+      responses:
+        "200": { $ref: "#/components/responses/RoleChanged" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "500": { $ref: "#/components/responses/ReadbackMismatch" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+    delete:
+      tags: [roles, pmss-extra]
+      x-pmss-extra: true
+      operationId: removeRoleACL
+      summary: Remove one ACL
+      description: Key is `acltype` + `topic`; a missing ACL → `404`. Response is the whole role (`200`).
+      security:
+        - keycloak: [write]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [acltype, topic]
+              properties:
+                acltype: { $ref: "#/components/schemas/ACLType" }
+                topic: { type: string, minLength: 1 }
+      responses:
+        "200": { $ref: "#/components/responses/RoleChanged" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "500": { $ref: "#/components/responses/ReadbackMismatch" }
+        "502": { $ref: "#/components/responses/BrokerError" }
+        "503": { $ref: "#/components/responses/BrokerUnavailable" }
+        "504": { $ref: "#/components/responses/BrokerTimeout" }
+
+components:
+  securitySchemes:
+    keycloak:
+      type: oauth2
+      description: |
+        Access tokens of Keycloak, sent as `Authorization: Bearer <JWT>`
+        (RFC 6750). The service only verifies tokens: signature (JWKS),
+        `iss`, `aud` = the service, `exp`/`nbf`, `typ` = `Bearer`, and the
+        scopes from the claim `scope` (spec 2.1). `read` is needed for `GET`,
+        `write` for changes; `write` does not include `read`. Keycloak gives
+        `write` only to users with the role `security-admin`. The flow that
+        produced the token does not matter to the service.
+
+        Ways to a token (design 7.5):
+
+        - **TasmoFleet:** Standard Token Exchange (RFC 8693) with the token
+          of the logged-in user, `audience` = the service (spec 2.2). The
+          grant type has no OpenAPI flow object and is therefore not listed
+          under `flows`.
+        - **Administrators:** Device Authorization Grant (RFC 8628) with the
+          login and second factor in the browser (T-4).
+        - **Scripts, monitoring:** Client Credentials, in production only
+          with `read` (SEC-35). `write` by Client Credentials exists only in
+          the test realm.
+
+        The URLs are examples for a Keycloak realm.
+      flows:
+        deviceAuthorization:
+          deviceAuthorizationUrl: https://keycloak.example.org/realms/example/protocol/openid-connect/auth/device
+          tokenUrl: https://keycloak.example.org/realms/example/protocol/openid-connect/token
+          scopes:
+            read: Read all objects (all `GET` endpoints)
+            write: Change managed objects; only for `security-admin`
+        clientCredentials:
+          tokenUrl: https://keycloak.example.org/realms/example/protocol/openid-connect/token
+          scopes:
+            read: Read all objects (all `GET` endpoints)
+            write: Test realm only; no service account has `write` in production (SEC-35)
+
+  parameters:
+    Username:
+      name: username
+      in: path
+      required: true
+      description: URL-encoded (RFC 3986), e.g. `CN%3Dhomeassistant%2CO%3Dmqtt-apps`.
+      schema: { type: string, minLength: 1 }
+    Group:
+      name: group
+      in: path
+      required: true
+      schema: { type: string, minLength: 1 }
+    Role:
+      name: role
+      in: path
+      required: true
+      schema: { type: string, minLength: 1 }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Current `ETag` of the object in the path. Missing → `428`, different → `412` (spec 3.2).
+      schema: { type: string }
+
+  requestBodies:
+    EmptyObject:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+
+  headers:
+    ETag:
+      description: Hash over the fields the object owns (spec 3.2), e.g. `"c-9f3b2a71c04d18e5"`.
+      required: true
+      schema: { $ref: "#/components/schemas/ETag" }
+    Location:
+      description: Path of the new object, URL-encoded.
+      required: true
+      schema: { type: string, pattern: "^/api/v1/" }
+    NoStore:
+      description: Responses are never cached; mandatory where a password may be contained.
+      schema: { const: no-store }
+    WWWAuthenticate:
+      description: RFC 6750, e.g. `Bearer error="insufficient_scope", scope="write"`.
+      required: true
+      schema: { type: string, pattern: "^Bearer" }
+
+  responses:
+    ClientChanged:
+      description: The changed client (S-10)
+      headers:
+        ETag: { $ref: "#/components/headers/ETag" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ClientChange" }
+    GroupChanged:
+      description: The changed group (S-10)
+      headers:
+        ETag: { $ref: "#/components/headers/ETag" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/GroupChange" }
+    RoleChanged:
+      description: The changed role, sorted, with warnings
+      headers:
+        ETag: { $ref: "#/components/headers/ETag" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/RoleChange" }
+    AssignmentRemoved:
+      description: Assignment removed; new ETag of the object in the path (S-10)
+      headers:
+        ETag: { $ref: "#/components/headers/ETag" }
+
+    Unauthorized:
+      description: Token missing, invalid or expired, wrong `iss` or `aud`
+      headers:
+        WWW-Authenticate: { $ref: "#/components/headers/WWWAuthenticate" }
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem401" }
+    InsufficientScope:
+      description: Scope `read` missing
+      headers:
+        WWW-Authenticate: { $ref: "#/components/headers/WWWAuthenticate" }
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem403" }
+    Forbidden:
+      description: |
+        `insufficient_scope` (with `WWW-Authenticate`), `not_managed`
+        (object without prefix or marker) or `reserved_name`
+        (`pmss-*`, `role_security_manager`)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem403" }
+    NotFound:
+      description: Object does not exist
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem404" }
+    Conflict:
+      description: "`already_exists`, or `certificate_client` for a password, `enable` or `disable` of a `CN=` client"
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem409" }
+    PreconditionFailed:
+      description: "`If-Match` does not match; nothing was changed"
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem412" }
+    PayloadTooLarge:
+      description: Body larger than `limits.maxRequestBytes`
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem413" }
+    ValidationFailed:
+      description: Invalid fields; `errors` with JSON Pointers into the body
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem422" }
+    UnprocessableAssignment:
+      description: "`validation_failed`, or `unknown_role`/`unknown_group` for a role or group that does not exist or is not managed"
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem422" }
+    UnprocessableClient:
+      description: |
+        `validation_failed`, or `unknown_role`/`unknown_group`; the client
+        was deleted again (`compensated: true`, `clientExists: false`)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem422" }
+    PreconditionRequired:
+      description: "`If-Match` missing"
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem428" }
+    ReadbackMismatch:
+      description: The state read back differs from the request (`readback_mismatch`; a new role was deleted again)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem500" }
+    BrokerError:
+      description: DynSec reported an error that matches no other code
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem502" }
+    BrokerErrorOrPartial:
+      description: "`broker_error`, or `partial_failure`: compensation failed, the object exists half created (`clientExists`/`roleExists: true`)"
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem502" }
+    BrokerUnavailable:
+      description: No connection to the broker; **the command was not sent**, retrying later is safe (S-13)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem503" }
+    BrokerTimeout:
+      description: No answer in time; **the state is unknown**. Read again instead of retrying (S-13, spec 3.7)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem504" }
+
+  schemas:
+    ETag:
+      type: string
+      description: Quoted strong ETag; the prefix shows the kind (`c-` client, `g-` group, `r-` role).
+      pattern: '^"[cgr]-[0-9a-f]+"$'
+    Timestamp:
+      type: string
+      format: date-time
+      description: RFC 3339 in UTC
+      pattern: "Z$"
+    Priority:
+      type: integer
+      minimum: -100000
+      maximum: 100000
+    ACLType:
+      type: string
+      enum:
+        - publishClientSend
+        - publishClientReceive
+        - subscribeLiteral
+        - subscribePattern
+        - unsubscribeLiteral
+        - unsubscribePattern
+
+    # --- objects as in the export (spec 4.2) ---
+    RoleRef:
+      type: object
+      additionalProperties: false
+      required: [rolename, priority]
+      properties:
+        rolename: { type: string }
+        priority: { type: integer, description: Always present; default −1 }
+    GroupRef:
+      type: object
+      additionalProperties: false
+      required: [groupname, priority]
+      properties:
+        groupname: { type: string }
+        priority: { type: integer, description: Always present; default −1 }
+    ClientRef:
+      type: object
+      additionalProperties: false
+      required: [username]
+      properties:
+        username: { type: string }
+    ACL:
+      type: object
+      additionalProperties: false
+      required: [acltype, topic, allow, priority]
+      properties:
+        acltype: { $ref: "#/components/schemas/ACLType" }
+        topic: { type: string }
+        allow: { type: boolean }
+        priority: { type: integer, description: Always present; default 0 }
+    Client:
+      type: object
+      required: [username, textname, textdescription, authType, disabled, roles, groups, etag]
+      description: "ETag fields: `username`, `textname`, `textdescription`, `disabled`, `roles`. `groups` and `authType` are shown but not in the ETag (S-4)."
+      properties:
+        username: { type: string }
+        textname: { type: string }
+        textdescription: { type: string, description: "`managed-by: pmss` for managed clients" }
+        authType:
+          type: string
+          enum: [password, certificate]
+          description: "`certificate` for names starting with `CN=`"
+        disabled: { type: boolean }
+        roles:
+          type: array
+          items: { $ref: "#/components/schemas/RoleRef" }
+        groups:
+          type: array
+          items: { $ref: "#/components/schemas/GroupRef" }
+        etag: { $ref: "#/components/schemas/ETag" }
+    Group:
+      type: object
+      required: [groupname, textname, roles, clients, etag]
+      description: "ETag fields: `groupname`, `textname`, `roles`, `clients` (the membership belongs to the group)."
+      properties:
+        groupname: { type: string }
+        textname: { type: string }
+        roles:
+          type: array
+          items: { $ref: "#/components/schemas/RoleRef" }
+        clients:
+          type: array
+          items: { $ref: "#/components/schemas/ClientRef" }
+        etag: { $ref: "#/components/schemas/ETag" }
+    Role:
+      type: object
+      required: [rolename, textname, acls, etag]
+      description: "ETag fields: `rolename`, `textname`, `acls`. ACLs sorted by `acltype`, then `topic`."
+      properties:
+        rolename: { type: string }
+        textname: { type: string }
+        acls:
+          type: array
+          items: { $ref: "#/components/schemas/ACL" }
+        etag: { $ref: "#/components/schemas/ETag" }
+
+    ClientView:
+      description: Client with `managed`
+      allOf:
+        - $ref: "#/components/schemas/Client"
+        - type: object
+          required: [managed]
+          properties:
+            managed: { type: boolean }
+    GroupView:
+      allOf:
+        - $ref: "#/components/schemas/Group"
+        - type: object
+          required: [managed]
+          properties:
+            managed: { type: boolean }
+    RoleView:
+      allOf:
+        - $ref: "#/components/schemas/Role"
+        - type: object
+          required: [managed]
+          properties:
+            managed: { type: boolean }
+
+    Warnings:
+      type: array
+      description: Hints that did not prevent the change (spec 3.6); empty as `[]`.
+      items:
+        type: object
+        required: [code, pointer, detail]
+        properties:
+          code:
+            type: string
+            examples: [deny_priority_not_higher]
+          pointer: { type: string, description: JSON Pointer (RFC 6901) }
+          detail: { type: string }
+    ClientChange:
+      allOf:
+        - $ref: "#/components/schemas/ClientView"
+        - type: object
+          required: [warnings]
+          properties:
+            warnings: { $ref: "#/components/schemas/Warnings" }
+    GroupChange:
+      allOf:
+        - $ref: "#/components/schemas/GroupView"
+        - type: object
+          required: [warnings]
+          properties:
+            warnings: { $ref: "#/components/schemas/Warnings" }
+    RoleChange:
+      allOf:
+        - $ref: "#/components/schemas/RoleView"
+        - type: object
+          required: [warnings]
+          properties:
+            warnings: { $ref: "#/components/schemas/Warnings" }
+
+    Password:
+      type: string
+      description: Exactly 24 characters `A–Z a–z 0–9` (spec 3.3).
+      pattern: "^[A-Za-z0-9]{24}$"
+    ClientCreated:
+      type: object
+      required: [client, passwordGenerated, warnings]
+      properties:
+        client: { $ref: "#/components/schemas/ClientView" }
+        password:
+          $ref: "#/components/schemas/Password"
+          description: Only if generated; shown exactly once. Never present for `CN=` clients or a given password.
+        passwordGenerated: { type: boolean }
+        warnings: { $ref: "#/components/schemas/Warnings" }
+    PasswordChanged:
+      type: object
+      required: [username, passwordGenerated]
+      properties:
+        username: { type: string }
+        password:
+          $ref: "#/components/schemas/Password"
+          description: Only if generated; shown exactly once.
+        passwordGenerated: { type: boolean }
+
+    Info:
+      type: object
+      required: [apiVersion, implementation, broker, managed, passwordPolicy, reservedNames, limits]
+      properties:
+        apiVersion:
+          type: string
+          pattern: '^1\.[0-9]+$'
+          description: Version of the specification, `MAJOR.MINOR`. A major version other than 1 → no changes (spec 4.1).
+        implementation:
+          type: object
+          required: [name, version]
+          properties:
+            name: { type: string }
+            version: { type: string }
+        broker:
+          type: object
+          required: [product, version]
+          properties:
+            product: { type: string, examples: [mosquitto] }
+            version: { type: string, description: Empty until the broker has reported it }
+        managed:
+          type: object
+          required: [rolePrefix, groupPrefix, clientMarker]
+          properties:
+            rolePrefix: { type: string, examples: [tf_] }
+            groupPrefix: { type: string, examples: [tf_] }
+            clientMarker: { type: string, examples: ["managed-by: pmss"] }
+        passwordPolicy:
+          type: object
+          required: [length, alphabet]
+          properties:
+            length: { const: 24 }
+            alphabet: { const: A-Za-z0-9 }
+        reservedNames:
+          type: array
+          description: "`*` stands for any characters"
+          items: { type: string }
+          examples: [["pmss-*", "role_security_manager"]]
+        limits:
+          type: object
+          required: [maxRequestBytes]
+          properties:
+            maxRequestBytes: { type: integer, minimum: 1048576 }
+    Export:
+      type: object
+      required: [exportedAt, apiVersion, clients, groups, roles]
+      properties:
+        exportedAt: { $ref: "#/components/schemas/Timestamp" }
+        apiVersion: { type: string, pattern: '^1\.[0-9]+$' }
+        clients:
+          type: array
+          items: { $ref: "#/components/schemas/Client" }
+        groups:
+          type: array
+          items: { $ref: "#/components/schemas/Group" }
+        roles:
+          type: array
+          items: { $ref: "#/components/schemas/Role" }
+
+    # --- requests ---
+    RoleAssignment:
+      type: object
+      additionalProperties: false
+      required: [rolename]
+      properties:
+        rolename: { type: string, minLength: 1 }
+        priority:
+          type: integer
+          description: Optional, default −1 as in DynSec
+    GroupAssignment:
+      type: object
+      additionalProperties: false
+      required: [groupname]
+      properties:
+        groupname: { type: string, minLength: 1 }
+        priority:
+          type: integer
+          description: Optional, default −1 as in DynSec
+    ClientCreate:
+      type: object
+      additionalProperties: false
+      required: [username]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: |
+            Not `pmss-*`. Password clients without `=`, `,`, `+`, `#`, `/`,
+            spaces and control characters. Certificate clients start with
+            `CN=` (subject of the app certificate).
+        textname: { type: string }
+        password:
+          $ref: "#/components/schemas/Password"
+          description: Optional; refused for `CN=` clients (`422`).
+        roles:
+          type: array
+          items: { $ref: "#/components/schemas/RoleAssignment" }
+        groups:
+          type: array
+          items: { $ref: "#/components/schemas/GroupAssignment" }
+    PasswordRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        password: { $ref: "#/components/schemas/Password" }
+    GroupCreate:
+      type: object
+      additionalProperties: false
+      required: [groupname]
+      properties:
+        groupname: { type: string, minLength: 1, description: With the group prefix }
+        textname: { type: string }
+    RoleCreate:
+      type: object
+      additionalProperties: false
+      required: [rolename]
+      properties:
+        rolename: { type: string, minLength: 1, description: With the role prefix }
+        textname: { type: string }
+        acls:
+          type: array
+          items: { $ref: "#/components/schemas/ACLInput" }
+    ACLInput:
+      type: object
+      additionalProperties: false
+      required: [acltype, topic, allow]
+      description: "`acltype` + `topic` is unique within a role; the order of a list has no meaning."
+      properties:
+        acltype: { $ref: "#/components/schemas/ACLType" }
+        topic: { type: string, minLength: 1, description: A valid MQTT topic filter }
+        allow: { type: boolean, description: "Mandatory: DynSec would make a deny rule without it" }
+        priority:
+          $ref: "#/components/schemas/Priority"
+          description: Optional, default 0
+
+    # --- problems (RFC 9457, spec 3.4, 3.5) ---
+    FieldError:
+      type: object
+      required: [pointer, code]
+      properties:
+        pointer: { type: string, description: JSON Pointer (RFC 6901) into the request body }
+        code: { type: string, examples: [required, invalid_acltype, read_only] }
+        detail: { type: string }
+    Problem:
+      type: object
+      required: [status, code, title]
+      description: |
+        Clients evaluate only `status` and `code`. `type` is set by the
+        implementation (PMSS: link to docs/errors.md); missing means
+        `about:blank`. `detail` never contains passwords or tokens.
+        Further members such as `compensated`, `clientExists` and
+        `roleExists` may be present.
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer }
+        code: { type: string }
+        detail: { type: string }
+        instance: { type: string }
+        errors:
+          type: array
+          items: { $ref: "#/components/schemas/FieldError" }
+        compensated: { type: boolean }
+        clientExists: { type: boolean }
+        roleExists: { type: boolean }
+    Problem401:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 401 }
+            code: { enum: [invalid_token] }
+    Problem403:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 403 }
+            code: { enum: [insufficient_scope, not_managed, reserved_name] }
+    Problem404:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 404 }
+            code: { enum: [not_found] }
+    Problem409:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 409 }
+            code: { enum: [already_exists, certificate_client] }
+    Problem412:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 412 }
+            code: { enum: [precondition_failed] }
+    Problem413:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 413 }
+            code: { enum: [payload_too_large] }
+    Problem422:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 422 }
+            code: { enum: [validation_failed, unknown_role, unknown_group] }
+    Problem428:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 428 }
+            code: { enum: [precondition_required] }
+    Problem500:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 500 }
+            code:
+              enum: [readback_mismatch, internal_error]
+              description: "`internal_error` is an addition of PMSS"
+    Problem502:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 502 }
+            code: { enum: [broker_error, partial_failure] }
+    Problem503:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 503 }
+            code: { enum: [broker_unavailable] }
+    Problem504:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - properties:
+            status: { const: 504 }
+            code: { enum: [broker_timeout] }
