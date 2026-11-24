@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -41,6 +42,24 @@ func TestHomePageAndEmbeddedAssets(t *testing.T) {
 	}
 	if !strings.Contains(asset.Body.String(), ".sidebar") {
 		t.Fatal("embedded stylesheet was not served")
+	}
+
+	cssURL := &url.URL{Path: "/static/app.css"}
+	for _, font := range []string{"geist-latin.woff2", "geist-mono-latin.woff2"} {
+		t.Run(font, func(t *testing.T) {
+			if !strings.Contains(asset.Body.String(), `url("`+font+`")`) {
+				t.Fatalf("stylesheet is missing relative font URL %q", font)
+			}
+			fontURL := cssURL.ResolveReference(&url.URL{Path: font})
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, fontURL.String(), nil))
+			if response.Code != http.StatusOK {
+				t.Fatalf("font status = %d, want %d", response.Code, http.StatusOK)
+			}
+			if response.Body.Len() == 0 {
+				t.Fatal("embedded font is empty")
+			}
+		})
 	}
 }
 
