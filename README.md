@@ -134,6 +134,24 @@ tokens are never displayed. JSON responses are checked against the matching Open
 the result view shows validation status, HTTP status, headers, body, and duration. Response bodies are
 limited to 1 MiB in the explorer.
 
+## Automated checks (Phase 4)
+
+Open **Prüfungen** from the navigation to run read-only Core checks against the configured target.
+Reachability (`GET /healthz`), authentication with missing and invalid tokens,
+the logged-in user's `read` scope, and the authenticated API information/version response are
+checked on each run where their prerequisites are met; otherwise the protected checks are marked
+`BLOCKED`. Select additional Core GET endpoints and supply any required path or query parameters;
+PMSS Extra and all write operations are excluded.
+
+Results are reported as `PASS`, `FAIL`, `NOT TESTED`, or `BLOCKED` and remain in memory only for
+the current response. A missing `read` scope blocks protected requests. Response schemas, the
+`Cache-Control: no-store` header on `/api/v1/info` and `/api/v1/export`, and strong ETags on
+individual client, group, and role responses are checked. Path encoding is verified when a
+supplied path value contains characters that need escaping; otherwise that sub-check is
+`NOT TESTED`. RFC 9457 details are validated for authentication failures and broker errors.
+`503 broker_unavailable` and `504 broker_timeout` are distinct failures; requests are never
+retried automatically.
+
 ## Acknowledgements
 
 Thanks to [TasmoFleet](https://github.com/hellwand/TasmoFleet) for the design inspiration. This

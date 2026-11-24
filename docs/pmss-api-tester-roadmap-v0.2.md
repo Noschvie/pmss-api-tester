@@ -232,17 +232,19 @@ Declared parameter and JSON response schemas are validated before display.
 
 ### Phase 4 – Initial Automated Checks
 
-- [ ] Check reachability and `/healthz`
-- [ ] Check `/api/v1/info` and version information
-- [ ] Test authentication
-- [ ] Check `read` permission; report missing `read` as `BLOCKED`
-- [ ] Execute selected GET endpoints
-- [ ] Check response status, headers, and JSON structure
-- [ ] Evaluate RFC 9457 problem details and distinguish `503`/`504`
-- [ ] Check ETag headers and URL-encoded GET path parameters
-- [ ] Display results as `PASS`, `FAIL`, `NOT TESTED`, and `BLOCKED`
+- [x] Check reachability and `/healthz`
+- [x] Check `/api/v1/info` and version information
+- [x] Test authentication
+- [x] Check `read` permission; report missing `read` as `BLOCKED`
+- [x] Execute selected GET endpoints
+- [x] Check response status, headers, and JSON structure
+- [x] Evaluate RFC 9457 problem details and distinguish `503`/`504`
+- [x] Check ETag headers and URL-encoded GET path parameters
+- [x] Display results as `PASS`, `FAIL`, `NOT TESTED`, and `BLOCKED`
 
-**Result:** Initial reproducible Core checks in the strictly read-only version 1 mode.
+**Result:** The `/checks` page runs repeatable read-only Core checks, reports results without
+persistent history, and never retries broker failures automatically. Path-encoding checks are
+`NOT TESTED` when supplied path values contain no characters requiring encoding.
 
 ### Phase 5 – Quality Assurance and Delivery
 

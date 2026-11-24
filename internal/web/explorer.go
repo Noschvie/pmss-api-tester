@@ -88,7 +88,7 @@ var explorerTemplate = template.Must(template.New("api-explorer").Funcs(explorer
 		<nav>
 			<a class="nav-item" href="/"><span class="nav-icon" aria-hidden="true">▦</span><span>Übersicht</span></a>
 			<a class="nav-item active" href="/api-explorer" aria-current="page"><span class="nav-icon" aria-hidden="true">⌘</span><span>API Explorer</span></a>
-			<div class="nav-item nav-muted" aria-disabled="true"><span class="nav-icon" aria-hidden="true">✓</span><span>Prüfungen</span><span class="nav-soon">Demnächst</span></div>
+			<a class="nav-item" href="/checks"><span class="nav-icon" aria-hidden="true">✓</span><span>Prüfungen</span></a>
 		</nav>
 		<div class="sidebar-bottom"><div class="sidebar-rule"></div><div class="version-label">VERSION 1 · READ-ONLY</div></div>
 	</aside>

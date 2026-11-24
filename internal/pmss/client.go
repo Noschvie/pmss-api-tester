@@ -57,10 +57,21 @@ func NewClient(baseURL string, allowInsecureHTTP bool) (*Client, error) {
 }
 
 func (c *Client) Execute(ctx context.Context, operation openapi.Operation, values url.Values, accessToken string) (Result, error) {
+	return c.execute(ctx, operation, values, accessToken, false)
+}
+
+func (c *Client) ExecuteWithoutToken(ctx context.Context, operation openapi.Operation, values url.Values) (Result, error) {
+	if operation.Path != "/healthz" && operation.Path != "/api/v1/info" {
+		return Result{}, errors.New("anonymous requests are restricted to health and authentication checks")
+	}
+	return c.execute(ctx, operation, values, "", true)
+}
+
+func (c *Client) execute(ctx context.Context, operation openapi.Operation, values url.Values, accessToken string, allowAnonymous bool) (Result, error) {
 	if operation.Method != http.MethodGet {
 		return Result{}, fmt.Errorf("BLOCKED: %s operations are disabled in read-only mode", operation.Method)
 	}
-	if accessToken == "" {
+	if accessToken == "" && !allowAnonymous {
 		return Result{}, errors.New("BLOCKED: a PMSS access token is required")
 	}
 	if err := operation.ValidateParameters(values); err != nil {
@@ -75,7 +86,9 @@ func (c *Client) Execute(ctx context.Context, operation openapi.Operation, value
 	if err != nil {
 		return Result{}, fmt.Errorf("prepare PMSS request: %w", err)
 	}
-	request.Header.Set("Authorization", "Bearer "+accessToken)
+	if accessToken != "" {
+		request.Header.Set("Authorization", "Bearer "+accessToken)
+	}
 	request.Header.Set("Accept", "application/json, application/problem+json")
 	for _, parameter := range operation.Parameters {
 		if parameter.In != "header" {

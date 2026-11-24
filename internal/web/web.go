@@ -45,6 +45,13 @@ func NewHandler(cfg config.Config) (http.Handler, error) {
 		data := explorerData(cfg, authService, operations, r)
 		renderExplorer(w, data, http.StatusOK)
 	})
+	mux.HandleFunc("GET /checks", func(w http.ResponseWriter, r *http.Request) {
+		data := checksData(cfg, authService, operations, r)
+		renderChecks(w, data, http.StatusOK)
+	})
+	mux.HandleFunc("POST /checks/run", func(w http.ResponseWriter, r *http.Request) {
+		handleChecksRun(w, r, cfg, authService, pmssClient, operations, operationsByID)
+	})
 	mux.HandleFunc("POST /api-explorer/execute", func(w http.ResponseWriter, r *http.Request) {
 		handleExplorerExecute(w, r, cfg, authService, pmssClient, operations, operationsByID)
 	})
