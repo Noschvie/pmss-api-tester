@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2026 Noschvie
+// PMSS API Tester - https://github.com/Noschvie/pmss-api-tester
+
 package pmss
 
 import (
