@@ -35,12 +35,43 @@ next start. The generated files are ignored inside the submodule.
 Open <http://127.0.0.1:8080> and sign in with a test user of the realm, `alice` or `bob`
 (password = user name, see the [realm README](https://github.com/Noschvie/phylax-mqtt-security-service/blob/v0.1.0/test/integration/keycloak/README.md)).
 `alice` has `security-admin` and must set up an OTP at the first sign-in. Use `127.0.0.1`, not
-`localhost`: the Keycloak issuer and the redirect URI of the `pmss-api-tester` client are fixed to
+`localhost`: by default the Keycloak issuer and the redirect URI of the `pmss-api-tester` client are
 `127.0.0.1`. Stop and remove the stack, including the broker data, with:
 
 ```sh
 docker compose -f compose.stack.yaml down -v
 ```
+
+#### Browser on another machine
+
+If the stack runs on a machine without a browser, set the address under which the browser reaches
+that machine, in an untracked `.env` file next to `compose.stack.yaml` or in the environment:
+
+```env
+STACK_HOST=hadersdorf      # host name or IP of the stack machine, as seen by the browser
+STACK_BIND=0.0.0.0         # publish the tester port on all interfaces, not only 127.0.0.1
+```
+
+| Variable | Default | Used for |
+|---|---|---|
+| `STACK_HOST` | `127.0.0.1` | `KC_HOSTNAME` (issuer of all tokens), redirect URIs of client `pmss-api-tester`, issuer of the service and the tester, `OIDC_CALLBACK_URL` |
+| `STACK_BIND` | `127.0.0.1` | Host interface of the tester port 8080 |
+
+Then start the stack as above and open `http://<STACK_HOST>:8080` on the other machine, with exactly
+that host name (the callback and the session cookie are bound to it). The browser needs ports 8080
+(tester) and 8180 (Keycloak sign-in) of the stack machine; Keycloak is published on all interfaces
+by the Security Service's Compose file. Mosquitto and the service stay bound to `127.0.0.1`.
+`STACK_HOST` only has to resolve on the browser's machine: the tester and the service reach Keycloak
+inside the Compose network as `keycloak:8080`.
+
+[`compose.stack.keycloak.yaml`](compose.stack.keycloak.yaml) sets `KC_HOSTNAME` and
+`PMSS_API_TESTER_URL` of the included Keycloak service; the Security Service's files stay unchanged.
+The redirect URIs are resolved during the realm import, so recreate Keycloak after changing
+`STACK_HOST` (`docker compose -f compose.stack.yaml up -d` does this when the variable changed).
+
+Keycloak serves plain HTTP here. The realm keeps Keycloak's default `sslRequired = external`, which
+allows HTTP only from private addresses (for example `192.168.x.x` or `10.x.x.x`). Use the stack only
+in an isolated test network: tokens, passwords and OTP codes cross the network unencrypted.
 
 To update to a newer PMSS release, move the submodule and the image tag together:
 
