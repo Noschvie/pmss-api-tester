@@ -1,0 +1,4 @@
+[submodule "stack/pmss"]
+	path = stack/pmss
+	url = https://github.com/Noschvie/phylax-mqtt-security-service.git
+	shallow = true

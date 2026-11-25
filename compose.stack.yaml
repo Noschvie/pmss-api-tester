@@ -1,0 +1,66 @@
+# Complete test stack for the API tester: Keycloak with the test realm,
+# Mosquitto with Dynamic Security, the PMSS release image and the tester.
+#
+# Keycloak and Mosquitto come from the integration environment of the
+# Security Service, pinned by the submodule stack/pmss (tag v0.1.0). The
+# service runs from the published image of the same tag. When updating,
+# move the submodule and PMSS_IMAGE together.
+#
+#   git submodule update --init
+#   stack/pmss/test/integration/broker/make-certs.sh stack/pmss/test/integration/broker/run
+#   docker compose -f compose.stack.yaml up -d --build --wait
+#   docker compose -f compose.stack.yaml down -v
+#
+# Test only: fixed test secrets, HTTP between the containers.
+
+name: pmss-api-tester-stack
+
+include:
+  - stack/pmss/test/integration/keycloak/compose.yaml
+  - stack/pmss/test/integration/broker/compose.yaml
+
+services:
+  pmss:
+    image: ${PMSS_IMAGE:-ghcr.io/noschvie/phylax-mqtt-security-service:v0.1.0}
+    read_only: true
+    environment:
+      PMSS_LOG_LEVEL: debug
+      # Defaults: mqtts://mosquitto:8884, certificates under /run.
+      PMSS_OIDC_ISSUER: http://127.0.0.1:8180/realms/pmss-test
+      PMSS_OIDC_AUDIENCE: phylax-mqtt-security-service
+      PMSS_OIDC_JWKS_URL: http://keycloak:8080/realms/pmss-test/protocol/openid-connect/certs
+      PMSS_OIDC_ALLOW_HTTP: "true"   # test only; production uses https
+    volumes:
+      - ./stack/pmss/test/integration/broker/run/certs/server-ca.crt:/run/mqtt-server-ca/ca.crt:ro
+      - ./stack/pmss/test/integration/broker/run/certs/pmss-admin.crt:/run/secrets/mqtt-client/pmss-admin.crt:ro
+      - ./stack/pmss/test/integration/broker/run/certs/pmss-admin.key:/run/secrets/mqtt-client/pmss-admin.key:ro
+    ports:
+      - "127.0.0.1:18080:8080"
+    depends_on:
+      - mosquitto
+      - keycloak
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/phylax-mqtt-security-service", "healthcheck"]
+      interval: 2s
+      retries: 30
+
+  pmss-api-tester:
+    build: .
+    environment:
+      TZ: Europe/Vienna
+      PMSS_API_BASE_URL: http://pmss:8080
+      PMSS_ALLOW_INSECURE_HTTP: "true"   # test only, HTTP inside the stack network
+      # Browser and token issuer use 127.0.0.1:8180 (KC_HOSTNAME of the
+      # Keycloak service); backend requests of the tester go to keycloak:8080.
+      OIDC_ISSUER_URL: http://127.0.0.1:8180/realms/pmss-test
+      OIDC_INTERNAL_URL: http://keycloak:8080/realms/pmss-test
+      OIDC_CLIENT_ID: pmss-api-tester
+      OIDC_CLIENT_SECRET: pmss-api-tester-secret   # fixed test secret of the test realm
+      OIDC_CALLBACK_URL: http://127.0.0.1:8080/auth/callback
+      OIDC_COOKIE_SECURE: "false"
+      PMSS_AUDIENCE: phylax-mqtt-security-service
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      pmss:
+        condition: service_healthy

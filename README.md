@@ -4,7 +4,59 @@ A Go-based, read-only API explorer and conformance tester for the MQTT Security 
 
 ## Run
 
-Build and start the application with Docker Compose:
+### Complete test stack
+
+[`compose.stack.yaml`](compose.stack.yaml) starts everything the tester needs in one Compose
+project:
+
+| Service | Source | Host port | Role |
+|---|---|---|---|
+| `keycloak` | Keycloak 26.8.2 with realm `pmss-test`, from the submodule | 8180, 8190 (health) | Token issuer |
+| `mosquitto` | Mosquitto 2.1.2 with Dynamic Security and test PKI, from the submodule | 127.0.0.1:18883, 127.0.0.1:18884 | Broker |
+| `pmss` | Image `ghcr.io/noschvie/phylax-mqtt-security-service:v0.1.0` | 127.0.0.1:18080 | Service under test |
+| `pmss-api-tester` | Built from this repository | 127.0.0.1:8080 | Tester |
+
+Keycloak and Mosquitto are included from the integration environment of the Security Service.
+The submodule [`stack/pmss`](https://github.com/Noschvie/phylax-mqtt-security-service) pins it to
+tag `v0.1.0`, the same release as the service image. The tester keeps no copy of the realm or the
+broker configuration.
+
+```sh
+git submodule update --init
+stack/pmss/test/integration/broker/make-certs.sh stack/pmss/test/integration/broker/run
+docker compose -f compose.stack.yaml up -d --build --wait
+```
+
+`make-certs.sh` creates the test PKI and the Dynamic Security state. Pass the directory explicitly:
+without an argument the script writes to `./run` relative to the current directory, and the broker
+would not find its certificates. The keys are valid for two days; run the script again before the
+next start. The generated files are ignored inside the submodule.
+
+Open <http://127.0.0.1:8080> and sign in with a test user of the realm, `alice` or `bob`
+(password = user name, see the [realm README](https://github.com/Noschvie/phylax-mqtt-security-service/blob/v0.1.0/test/integration/keycloak/README.md)).
+`alice` has `security-admin` and must set up an OTP at the first sign-in. Use `127.0.0.1`, not
+`localhost`: the Keycloak issuer and the redirect URI of the `pmss-api-tester` client are fixed to
+`127.0.0.1`. Stop and remove the stack, including the broker data, with:
+
+```sh
+docker compose -f compose.stack.yaml down -v
+```
+
+To update to a newer PMSS release, move the submodule and the image tag together:
+
+```sh
+git -C stack/pmss fetch --depth 1 origin tag vX.Y.Z
+git -C stack/pmss checkout vX.Y.Z
+# change the default of PMSS_IMAGE in compose.stack.yaml to :vX.Y.Z
+```
+
+`PMSS_IMAGE` overrides the image for a single run, for example to test `:edge`; the Keycloak and
+broker configuration still comes from the submodule.
+
+### Against a running PMSS integration stack
+
+If the integration stack of the Security Service (`test/integration` in its repository) is already
+running, start only the tester:
 
 ```sh
 # Start the pmss-it integration stack first so its external Docker network exists.
@@ -90,33 +142,39 @@ The initial reference images still need to be generated and reviewed in that con
 
 ## Keycloak login (Phase 2)
 
-The login is optional until OIDC is configured. `config/pmss-test-realm.json` defines a dedicated
-confidential `pmss-api-tester` client for the test realm, with Standard Flow, PKCE `S256`, Standard
-Token Exchange and the optional `read` scope. The scope's audience mapper targets
-`phylax-mqtt-security-service`; the tester client cannot request `write`. The configuration requires
-Keycloak 26.2 or newer with Standard Token Exchange enabled.
+The login is optional until OIDC is configured. The test realm `pmss-test` of the Security Service
+(`stack/pmss/test/integration/keycloak/realm/pmss-test-realm.json`, pinned by the submodule) defines
+a dedicated confidential `pmss-api-tester` client with Standard Flow, PKCE `S256`, Standard Token
+Exchange and the optional `read` scope. The scope's audience mapper targets
+`phylax-mqtt-security-service`; the tester client cannot request `write`. `config/realm_test.go`
+checks these settings in the pinned realm and is skipped when the submodule is not checked out. The
+configuration requires Keycloak 26.2 or newer with Standard Token Exchange enabled.
 
-Import the realm into a **new test realm**, or create the client with the same settings in an existing
-realm. Keycloak's startup realm import skips realms that already exist; changing the JSON alone does
-not update a running realm. Do not overwrite an existing realm just to add this client.
+The complete test stack (see [Run](#complete-test-stack)) imports this realm and configures the
+tester with the fixed test secret `pmss-api-tester-secret`; nothing else is needed. For another
+Keycloak instance, import the realm into a **new test realm**, or create the client with the same
+settings in an existing realm. Keycloak's startup realm import skips realms that already exist;
+changing the JSON alone does not update a running realm. Do not overwrite an existing realm just to
+add this client.
 
-After creating the client, obtain its generated secret under **Clients → pmss-api-tester →
-Credentials** in the Keycloak admin console and place it in an untracked `.env` file. Do not put the
-secret in source control. The supplied realm contains test users and credentials and is intended
-only for an isolated test instance.
+With a client created in another realm, obtain its generated secret under **Clients →
+pmss-api-tester → Credentials** in the Keycloak admin console and place it in an untracked `.env`
+file. Do not put the secret in source control. The test realm contains test users and credentials
+and is intended only for an isolated test instance.
 
-The supplied realm's redirect URI is `http://192.168.7.39:8080/auth/callback` and its post-logout
-redirect URI is `http://192.168.7.39:8080/`. If the tester is accessed at another origin, update both URIs on the
-Keycloak client and set `OIDC_CALLBACK_URL` accordingly.
+The redirect URI of the realm's client is `${PMSS_API_TESTER_URL}/auth/callback` and its post-logout
+redirect URI is `${PMSS_API_TESTER_URL}/`, resolved during the realm import (default
+`http://127.0.0.1:8080`). If the tester is accessed at another origin, set `PMSS_API_TESTER_URL` for
+Keycloak before the first import and set `OIDC_CALLBACK_URL` accordingly.
 
 Set these variables in the environment used to start Compose (or in an untracked `.env` file):
 
 ```env
-OIDC_ISSUER_URL=http://192.168.7.39:8180/realms/pmss-test
+OIDC_ISSUER_URL=http://127.0.0.1:8180/realms/pmss-test
 OIDC_INTERNAL_URL=
 OIDC_CLIENT_ID=pmss-api-tester
 OIDC_CLIENT_SECRET=<client-secret>
-OIDC_CALLBACK_URL=http://192.168.7.39:8080/auth/callback
+OIDC_CALLBACK_URL=http://127.0.0.1:8080/auth/callback
 OIDC_COOKIE_SECURE=false
 PMSS_AUDIENCE=phylax-mqtt-security-service
 ```
@@ -160,11 +218,11 @@ HTTPS is required by default, with normal certificate verification. For an isola
 test environment only, explicitly enable unencrypted HTTP:
 
 ```env
-PMSS_API_BASE_URL=http://192.168.7.39:18080
+PMSS_API_BASE_URL=http://pmss:8080
 PMSS_ALLOW_INSECURE_HTTP=true
 ```
 
-In this example, port `18080` is the integration stack's published PMSS port on the Docker host;
+In this example, `pmss:8080` is the service inside the Compose network of the integration stack;
 the tester container must be able to reach that address. HTTP sends the user's bearer token and
 responses unencrypted and does not authenticate the target. Anyone with network access to the
 traffic may read, modify, or replay the token; never enable this for production or untrusted
