@@ -42,9 +42,51 @@ go test ./...
 ```
 
 The suite includes table-driven unit tests and authenticated HTTP integration tests with local mock
-OIDC and PMSS servers, including checks that every non-GET OpenAPI operation is blocked. It does
-not replace a test run against a real Keycloak and PMSS instance, browser or visual regression
-tests, or Docker runtime verification.
+OIDC and PMSS servers, including checks that every non-GET OpenAPI operation is blocked.
+
+### Browser tests
+
+With Go 1.26 or newer and Node.js 20 or newer installed, run:
+
+```sh
+npm ci
+npx playwright install chromium
+npm run test:e2e
+```
+
+Playwright starts the real application and local OIDC and PMSS test doubles on loopback ports
+4173 and 4174. Both ports must be free; existing services are never reused. The app's endpoint,
+OIDC, cookie and audience settings are explicitly overwritten for the test process, so no
+production Keycloak or PMSS is contacted. The OIDC mock provides a login form, signed ID tokens,
+PKCE verification, token exchange and logout, but is not a real Keycloak instance. The tests cover
+sign-in, an authenticated GET, checks, logout, a token without `read`, and blocked write operations;
+they also assert which requests reached the PMSS mock. The mock users and credentials are only
+test fixtures. These tests do not replace testing against a real isolated Keycloak and PMSS.
+
+### Visual regression
+
+The three viewport snapshots use the same local fixtures, Chromium, a 1440 × 900 viewport,
+device scale 1, light theme, UTC and English locale. Animations are disabled, fonts are loaded,
+and the session expiry, request duration and response headers are masked. Generate and compare
+baselines only in the same pinned Linux/amd64 container, not with a locally installed browser.
+Docker must be able to access the image registries and Go module proxy when building/running:
+
+```sh
+docker build --platform linux/amd64 -f e2e/Dockerfile -t pmss-e2e-visual .
+docker run --rm --platform linux/amd64 --ipc=host -v "${PWD}:/work" pmss-e2e-visual
+```
+
+To create or deliberately update the reference images, use the same image and command with
+`test --project=visual --update-snapshots` after the image name:
+
+```sh
+docker run --rm --platform linux/amd64 --ipc=host -v "${PWD}:/work" pmss-e2e-visual node /opt/e2e/node_modules/@playwright/test/cli.js test --project=visual --update-snapshots
+```
+
+Review the resulting PNG diffs in `e2e/visual.spec.js-snapshots` before checking them in. A missing
+or changed baseline fails the comparison; never update snapshots automatically in CI. Rebuild and
+review all references deliberately when changing the pinned Playwright image, browser or fonts.
+The initial reference images still need to be generated and reviewed in that container.
 
 ## Keycloak login (Phase 2)
 

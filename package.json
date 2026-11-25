@@ -1,0 +1,11 @@
+{
+  "name": "pmss-api-tester-e2e",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test --project=chromium",
+    "test:visual": "playwright test --project=visual"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
