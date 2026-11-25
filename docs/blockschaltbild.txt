@@ -1,0 +1,37 @@
+
+┌──────────────────┐ (1) Anmeldung (OIDC) ┌───────────────────────────────────────────┐
+│ Browser          │─────────────────────►│ OIDC-Provider (Keycloak, authentik)       │
+│ security-admin   │                      │ operator / admin / security-admin         │
+└────────┬─────────┘                      │ Scopes read / write, zweiter Faktor       │
+         │ Oberfläche                     └──────▲─────────────────────────┬──────────┘
+         ▼                                       │ (2) Token Exchange      │ (3) JWKS
+┌────────────────────────────────────────────────┴─────┐                   │
+│ TasmoFleet                                           │                   │
+│  Security Manager: Soll-Zustand, Diff, Freigabe,     │                   │
+│  Drift-Report, Audit der Freigaben                   │                   │
+│  Security-Service-Client: Token, ETag/If-Match       │                   │
+└───────┬───────────────────────────────┬──────────────┘                   │
+        │                               │                                  │
+        │ (6) MQTT als                  │ (4) HTTPS, Bearer-Token, JSON    │
+        │     normaler Client           │ * Schnittstellenspezifikation    │
+        │     (Backlog an Geräte)       ▼                                  │
+        │                       ┌──────────────────────────────────────┐   │
+        │                       │ NPM (TLS-Terminierung)               │   │
+        │                       └───────┬──────────────────────────────┘   │
+        │                               ▼                                  │
+        │                       ┌──────────────────────────────────────┐   │
+        │                       │ MQTT Security Service (PMSS)         │◄──┘
+        │                       │ Token-Prüfung, Validierung, ETag,    │
+        │                       │ Ausgleichsweg, Audit-Log             │
+        │                       └───────┬──────────────────────────────┘
+        │                               │ (5) MQTT 5, mTLS :8884, Admin-Zertifikat
+        │                               ▼     $CONTROL/dynamic-security/v1
+        │                       ┌──────────────────────────────────────┐
+        └──────────────────────►│ Mosquitto 2.1 + Dynamic Security     │
+          :1883 / :8883         └───────▲──────────────────────────────┘
+                                        │ (7) :1883 Passwort
+                                        │     :8883 TLS + Passwort
+                                        │     :8885 App-Zertifikat
+                                ┌───────┴──────────────────────────────┐
+                                │ Tasmota-Geräte und Anwendungen       │
+                                └──────────────────────────────────────┘
