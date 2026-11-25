@@ -162,6 +162,12 @@ retried automatically.
 
 ## Acknowledgements
 
-Thanks to [TasmoFleet](https://github.com/hellwand/TasmoFleet) for the design inspiration. This
-project is an API explorer and conformance tester for the
-[Phylax MQTT Security Service](https://github.com/Noschvie/phylax-mqtt-security-service).
+Thanks to [TasmoFleet](https://github.com/hellwand/TasmoFleet) for the design inspiration.
+
+This project is an API explorer and conformance tester for the [Phylax MQTT Security Service](https://github.com/Noschvie/phylax-mqtt-security-service).
+
+## License
+
+[GNU Affero General Public License v3.0 or later](LICENSE) (`AGPL-3.0-or-later`). For modified
+versions offered for remote network interaction, see section 13 of the license for the
+corresponding-source requirement.
