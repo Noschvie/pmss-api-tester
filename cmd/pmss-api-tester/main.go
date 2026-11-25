@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -21,7 +22,20 @@ import (
 	"github.com/noschvie/pmss-api-tester/internal/web"
 )
 
+// version is set at build time: -ldflags "-X main.version=v1.2.3".
+var version = "dev"
+
 func main() {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "version":
+			fmt.Println(version)
+			return
+		default:
+			fmt.Fprintf(os.Stderr, "unknown command %q (version)\n", os.Args[1])
+			os.Exit(2)
+		}
+	}
 	if err := run(); err != nil {
 		slog.Error("application stopped", "error", err)
 		os.Exit(1)
@@ -58,7 +72,7 @@ func run() error {
 
 	serverErrors := make(chan error, 1)
 	go func() {
-		logger.Info("HTTP server listening", "address", cfg.HTTPAddr)
+		logger.Info("HTTP server listening", "version", version, "address", cfg.HTTPAddr)
 		serverErrors <- server.ListenAndServe()
 	}()
 
