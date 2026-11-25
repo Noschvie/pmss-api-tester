@@ -2,7 +2,7 @@
 
 **Document status:** Implementation roadmap for version 1
 **Version:** 0.2
-**Date:** 24 November 2026
+**Date:** 26 November 2026
 
 The architectural decisions follow `docs/design/pmss-api-tester-design-v0.3.md`. In case of deviations, the design document is authoritative; the MQTT Security Service API specification remains the normative API basis.
 
@@ -253,16 +253,20 @@ persistent history, and never retries broker failures automatically. Path-encodi
 - [x] Cover HTTP scenarios with `httptest.Server` and `httptest.ResponseRecorder`
 - [x] Test the read-only restriction and Core/PMSS Extra separation
 - [x] Integration tests for complete backend and HTTP processing
-- [ ] Playwright E2E tests for login, the API Explorer, and central workflows
+- [x] Playwright E2E tests for login, the API Explorer, and central workflows
 - [ ] Limited visual regression tests following TasmoFleet conventions
 - [x] Docker build and runtime test
-- [ ] Documented test run against a PMSS reference implementation
+- [x] Documented test run against a PMSS reference implementation ([test record](test-run-pmss-v0.1.0.md))
 
 Status: Table-driven status, scope, header, ETag, and problem-details tests are in place. Local
 mock OIDC and PMSS servers exercise login callbacks, authenticated Explorer and Checks workflows,
 CSRF handling, missing parameters, absent read scope, and rejection of every non-GET OpenAPI
-operation. Browser E2E and visual tests and a reference-implementation run remain outstanding.
-Docker image build and container runtime were verified in a Linux VM.
+operation. Playwright E2E tests cover sign-in, an authenticated GET, checks, logout, a token
+without `read`, and blocked write operations against local test doubles. Docker image build and
+container runtime were verified in a Linux VM. A manual run against PMSS v0.1.0 in the complete
+test stack on hadersdorf passed for `bob` and `alice` (with OTP), see
+[test record](test-run-pmss-v0.1.0.md). The visual regression tests are in place, but their
+initial reference images still need to be generated and reviewed in the pinned container.
 
 **Result:** A reproducibly buildable and testable release of the API Tester.
 
