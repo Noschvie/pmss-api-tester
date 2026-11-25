@@ -50,7 +50,7 @@ var checksTemplate = template.Must(template.New("checks").Funcs(template.FuncMap
 	"operationInputID": func(operationID, formKey string) string {
 		return "input_" + operationID + "_" + formKey
 	},
-	"isPath": func(location string) bool { return location == "path" },
+	"isPath":      func(location string) bool { return location == "path" },
 	"statusClass": func(status string) string { return strings.ReplaceAll(strings.ToLower(status), " ", "-") },
 }).Parse(`<!doctype html>
 <html lang="en" data-theme="light">
@@ -122,10 +122,10 @@ var checksTemplate = template.Must(template.New("checks").Funcs(template.FuncMap
 
 func checksData(cfg config.Config, authService *auth.Service, operations []openapi.Operation, request *http.Request) checkPageData {
 	data := checkPageData{
-		Configured: cfg.PMSSAPIBaseURL != "",
+		Configured:  cfg.PMSSAPIBaseURL != "",
 		AuthEnabled: authService.Enabled(),
-		Values:     make(map[string]string),
-		Selected:   make(map[string]bool),
+		Values:      make(map[string]string),
+		Selected:    make(map[string]bool),
 	}
 	for _, operation := range operations {
 		if !operation.Extra && operation.Method == http.MethodGet && operation.ID != "healthz" && operation.ID != "getInfo" {
@@ -345,7 +345,7 @@ func runInvalidTokenCheck(ctx context.Context, client *pmss.Client, info openapi
 
 func evaluateAPIVersion(body string) checkResult {
 	var info struct {
-		APIVersion    string `json:"apiVersion"`
+		APIVersion     string `json:"apiVersion"`
 		Implementation struct {
 			Name    string `json:"name"`
 			Version string `json:"version"`
