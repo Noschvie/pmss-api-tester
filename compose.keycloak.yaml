@@ -1,5 +1,5 @@
 # Override for the Keycloak service of the Security Service (included by
-# compose.stack.yaml). Makes the public host of the stack configurable, so
+# compose.yaml). Makes the public host of the stack configurable, so
 # a browser on another machine can sign in. Default: 127.0.0.1, as in the
 # integration environment of the Security Service.
 
