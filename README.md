@@ -44,7 +44,16 @@ OTP at the first sign-in; `bob` signs in with the password only. Keycloak shows 
 with an authenticator app (FreeOTP, Aegis, Google Authenticator, …) and enter the six-digit code.
 
 Without a phone, select **Unable to scan?** below the QR code, copy the secret and create the code
-on the command line with `oathtool` (Debian/Ubuntu: `sudo apt install oathtool`):
+on the command line. Python 3.7 or newer is enough and is present on most Linux systems, including
+Raspberry Pi OS; the secret may be pasted with the spaces Keycloak shows:
+
+```sh
+python3 -c 'import base64,hmac,struct,sys,time;s=sys.argv[1].replace(" ","").upper();k=base64.b32decode(s+"="*(-len(s)%8));h=hmac.digest(k,struct.pack(">Q",int(time.time())//30),"sha1");o=h[-1]&15;print("%06d"%((int.from_bytes(h[o:o+4],"big")&0x7fffffff)%10**6))' 'SECRET'
+```
+
+This is TOTP as Keycloak configures it by default (SHA-1, six digits, 30 seconds). Alternatively,
+`oathtool` does the same, but is usually not installed (Debian/Ubuntu/Raspberry Pi OS:
+`sudo apt install oathtool`):
 
 ```sh
 oathtool --totp -b 'SECRET WITHOUT SPACES'
