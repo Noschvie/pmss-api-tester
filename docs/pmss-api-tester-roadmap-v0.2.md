@@ -255,14 +255,14 @@ persistent history, and never retries broker failures automatically. Path-encodi
 - [x] Integration tests for complete backend and HTTP processing
 - [ ] Playwright E2E tests for login, the API Explorer, and central workflows
 - [ ] Limited visual regression tests following TasmoFleet conventions
-- [ ] Docker build and runtime test
+- [x] Docker build and runtime test
 - [ ] Documented test run against a PMSS reference implementation
 
 Status: Table-driven status, scope, header, ETag, and problem-details tests are in place. Local
 mock OIDC and PMSS servers exercise login callbacks, authenticated Explorer and Checks workflows,
 CSRF handling, missing parameters, absent read scope, and rejection of every non-GET OpenAPI
-operation. Browser E2E and visual tests, Docker verification, and a reference-implementation run
-remain outstanding.
+operation. Browser E2E and visual tests and a reference-implementation run remain outstanding.
+Docker image build and container runtime were verified in a Linux VM.
 
 **Result:** A reproducibly buildable and testable release of the API Tester.
 
