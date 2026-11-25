@@ -154,11 +154,17 @@ func TestSessionTokenAndCSRFProtectedLogout(t *testing.T) {
 	if !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || cookie.Path != "/" {
 		t.Fatalf("session cookie is missing security flags: %+v", cookie)
 	}
-	if _, ok := service.Logout(sessionID, "incorrect"); ok {
-		t.Fatal("logout accepted an invalid CSRF token")
+	if _, result := service.Logout(sessionID, "incorrect"); result != LogoutInvalidCSRF {
+		t.Fatalf("logout with an invalid CSRF token = %v, want LogoutInvalidCSRF", result)
 	}
-	if idToken, ok := service.Logout(sessionID, "random-csrf-token"); !ok || idToken != "id-token" {
-		t.Fatalf("logout = %q, %t", idToken, ok)
+	if _, result := service.Logout(sessionID, ""); result != LogoutInvalidCSRF {
+		t.Fatalf("logout without a CSRF token = %v, want LogoutInvalidCSRF", result)
+	}
+	if idToken, result := service.Logout(sessionID, "random-csrf-token"); result != LogoutDone || idToken != "id-token" {
+		t.Fatalf("logout = %q, %v", idToken, result)
+	}
+	if _, result := service.Logout(sessionID, "random-csrf-token"); result != LogoutNoSession {
+		t.Fatalf("second logout = %v, want LogoutNoSession", result)
 	}
 	if session, _ := service.Session(request); session != nil {
 		t.Fatal("session remains after logout")
@@ -236,5 +242,44 @@ func TestExpiredSessionIsRemoved(t *testing.T) {
 	}
 	if _, ok := service.sessions["expired"]; ok {
 		t.Fatal("expired session remains in the session store")
+	}
+}
+
+func TestLogoutOfExpiredSession(t *testing.T) {
+	tests := []struct {
+		name       string
+		csrf       string
+		wantToken  string
+		wantResult LogoutResult
+	}{
+		{name: "own CSRF token keeps the ID token as hint", csrf: "csrf", wantToken: "id-token", wantResult: LogoutDone},
+		{name: "wrong CSRF token", csrf: "forged", wantResult: LogoutNoSession},
+		{name: "no CSRF token", wantResult: LogoutNoSession},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := New(config.OIDCConfig{})
+			service.sessions["expired"] = &Session{
+				CSRFToken: "csrf",
+				ExpiresAt: time.Now().Add(-time.Minute),
+				idToken:   "id-token",
+			}
+			idToken, result := service.Logout("expired", test.csrf)
+			if result != test.wantResult || idToken != test.wantToken {
+				t.Fatalf("Logout = %q, %v; want %q, %v", idToken, result, test.wantToken, test.wantResult)
+			}
+			if _, ok := service.sessions["expired"]; ok {
+				t.Fatal("expired session remains after logout")
+			}
+		})
+	}
+	if _, result := New(config.OIDCConfig{}).Logout("", "csrf"); result != LogoutNoSession {
+		t.Fatalf("Logout without session ID = %v, want LogoutNoSession", result)
+	}
+}
+
+func TestEndSessionURLWithoutProvider(t *testing.T) {
+	if got := New(config.OIDCConfig{}).EndSessionURL(context.Background(), "id-token", "http://tester.test/"); got != "/" {
+		t.Fatalf("EndSessionURL without OIDC = %q, want /", got)
 	}
 }

@@ -24,6 +24,12 @@ async function targetRequests(request) {
   return response.json();
 }
 
+async function providerLogouts(request) {
+  const response = await request.get('http://127.0.0.1:4174/test/logouts');
+  expect(response.ok()).toBeTruthy();
+  return response.json();
+}
+
 async function runInfo(page) {
   await page.locator('aside[aria-label="Main navigation"]').getByRole('link', { name: 'API Explorer' }).click();
   await page.locator('#operation-getInfo').getByRole('button', { name: 'Run GET' }).click();
@@ -37,4 +43,4 @@ async function runChecks(page) {
   await expect(page.locator('.check-results')).toBeVisible();
 }
 
-module.exports = { login, resetRequests, targetRequests, runInfo, runChecks };
+module.exports = { login, resetRequests, targetRequests, providerLogouts, runInfo, runChecks };

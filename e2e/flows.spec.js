@@ -3,7 +3,9 @@
 // PMSS API Tester - https://github.com/Noschvie/pmss-api-tester
 
 const { test, expect } = require('@playwright/test');
-const { login, resetRequests, targetRequests, runInfo, runChecks } = require('./helpers');
+const {
+  login, resetRequests, targetRequests, providerLogouts, runInfo, runChecks,
+} = require('./helpers');
 
 test.beforeEach(async ({ request }) => resetRequests(request));
 
@@ -35,6 +37,19 @@ test('sign in, read the API, run checks and log out', async ({ page, request }) 
   expect((await page.context().cookies()).some((cookie) => cookie.name === 'pmss_session')).toBe(false);
   const replay = await request.get('http://127.0.0.1:4173/', { headers: { cookie: `pmss_session=${session.value}` } });
   expect(await replay.text()).toContain('Sign in with your account');
+  expect(await providerLogouts(request)).toEqual([{ idTokenHint: true }]);
+});
+
+test('log out after the session ended on the server', async ({ page, request }) => {
+  await login(page);
+  // The session is gone on the server (expired with the access token or
+  // lost by a restart), the page still shows the logout button.
+  const session = (await page.context().cookies()).find((cookie) => cookie.name === 'pmss_session');
+  await page.context().addCookies([{ ...session, value: 'unknown-session' }]);
+  await page.getByRole('button', { name: 'Log out' }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in with your account' })).toBeVisible();
+  expect((await page.context().cookies()).some((cookie) => cookie.name === 'pmss_session')).toBe(false);
+  expect(await providerLogouts(request)).toEqual([{ idTokenHint: false }]);
 });
 
 test('missing read scope blocks protected explorer and checks requests', async ({ page, request }) => {

@@ -101,12 +101,16 @@ func NewHandler(cfg config.Config) (http.Handler, error) {
 			http.Error(w, "Invalid logout request", http.StatusBadRequest)
 			return
 		}
-		_, sessionID := authService.Session(r)
-		idToken, ok := authService.Logout(sessionID, r.PostForm.Get("csrf_token"))
-		if !ok {
+		// The cookie value, not Session(): Session() hides an expired
+		// session, whose ID token Logout can still use as id_token_hint.
+		idToken, result := authService.Logout(authService.SessionID(r), r.PostForm.Get("csrf_token"))
+		if result == auth.LogoutInvalidCSRF {
 			http.Error(w, "Invalid CSRF validation", http.StatusForbidden)
 			return
 		}
+		// LogoutDone or LogoutNoSession: clear the cookie and end the
+		// provider session. Without an ID token, the provider asks the user
+		// to confirm, so a forged request cannot end the SSO session.
 		http.SetCookie(w, authService.ClearCookie())
 		redirectURL, err := url.Parse(cfg.OIDC.CallbackURL)
 		if err != nil {
@@ -115,7 +119,7 @@ func NewHandler(cfg config.Config) (http.Handler, error) {
 		}
 		redirectURL.Path = "/"
 		redirectURL.RawPath = ""
-		http.Redirect(w, r, authService.EndSessionURL(idToken, redirectURL.String()), http.StatusSeeOther)
+		http.Redirect(w, r, authService.EndSessionURL(r.Context(), idToken, redirectURL.String()), http.StatusSeeOther)
 	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")

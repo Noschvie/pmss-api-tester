@@ -15,6 +15,7 @@ const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'e2e-key', use: 'sig'
 const codes = new Map();
 const subjectTokens = new Map();
 let requests = [];
+let logouts = [];
 
 function json(res, status, value, headers = {}) {
   res.writeHead(status, { 'content-type': 'application/json', ...headers });
@@ -53,8 +54,10 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, origin);
     if (url.pathname === '/test/health' && req.method === 'GET') return json(res, 200, { ok: true });
     if (url.pathname === '/test/requests' && req.method === 'GET') return json(res, 200, requests);
+    if (url.pathname === '/test/logouts' && req.method === 'GET') return json(res, 200, logouts);
     if (url.pathname === '/test/requests' && req.method === 'DELETE') {
       requests = [];
+      logouts = [];
       return json(res, 200, { ok: true });
     }
     if (url.pathname === '/realms/test/.well-known/openid-configuration' && req.method === 'GET') {
@@ -126,8 +129,11 @@ const server = http.createServer(async (req, res) => {
       return json(res, 400, { error: 'unsupported_grant_type' });
     }
     if (url.pathname === '/realms/test/logout' && req.method === 'GET') {
+      // Like Keycloak: post_logout_redirect_uri needs id_token_hint or
+      // client_id; without a hint, Keycloak asks the user to confirm.
       if (url.searchParams.get('post_logout_redirect_uri') !== 'http://127.0.0.1:4173/' ||
-          !url.searchParams.get('id_token_hint')) return json(res, 400, { error: 'invalid_logout' });
+          url.searchParams.get('client_id') !== 'e2e-client') return json(res, 400, { error: 'invalid_logout' });
+      logouts.push({ idTokenHint: Boolean(url.searchParams.get('id_token_hint')) });
       return redirect(res, 'http://127.0.0.1:4173/');
     }
     if (url.pathname === '/healthz' || url.pathname.startsWith('/api/')) {

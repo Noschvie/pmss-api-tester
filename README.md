@@ -138,7 +138,13 @@ RFC 8693, requesting only `read` and the configured audience. Access tokens and 
 kept in memory on the server and are never sent to the browser. The session ends when the login
 access token expires or after eight hours, whichever comes first; refreshing requires logging in
 again. Logout is a CSRF-protected POST and also redirects through Keycloak's end-session endpoint
-when the provider advertises one. A missing `read` scope is shown as `BLOCKED`, not as a successful
+when the provider advertises one, with `client_id` and, while the tester still knows the session, the
+ID token as `id_token_hint`. If the session already ended on the server (with the access token, or
+because the tester was restarted), the logout still clears the cookie and redirects to Keycloak
+without `id_token_hint`; Keycloak then asks the user to confirm the logout, so a forged request cannot
+end the Keycloak session. Only an active session with a wrong CSRF token is rejected with `403`.
+Keycloak's own session outlives the tester's: without the logout, the next sign-in reuses it without
+asking for a password. A missing `read` scope is shown as `BLOCKED`, not as a successful
 authorization.
 
 To check the integration, sign in with each configured test user and confirm that the tester shows
