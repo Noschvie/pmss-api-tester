@@ -124,7 +124,7 @@ func TestRunInvalidTokenCheck(t *testing.T) {
 func TestEvaluateResponseChecksETagAndBrokerErrors(t *testing.T) {
 	operation := openapi.Operation{ID: "getClient", Method: http.MethodGet, Path: "/api/v1/clients/{username}"}
 	valid := pmss.Result{
-		StatusCode:   http.StatusOK,
+		StatusCode:    http.StatusOK,
 		SchemaChecked: true,
 		SchemaValid:   true,
 		Headers: []pmss.Header{

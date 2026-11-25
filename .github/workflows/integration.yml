@@ -1,0 +1,88 @@
+name: Integration
+
+# The complete test stack of compose.yaml: Keycloak with the test realm and
+# Mosquitto with Dynamic Security from the submodule stack/pmss, the PMSS
+# release image of the same tag and the tester built from this commit.
+# scripts/stack-smoke.sh checks the tester against the real service and
+# Keycloak, anonymously and without a browser.
+#
+# Job pmss-edge: the same against ghcr.io/noschvie/phylax-mqtt-security-service:edge,
+# as an early warning for changes in PMSS. It does not gate the image build.
+
+on:
+  pull_request:
+  # main, tags and the weekly rebuild run this workflow from release.yml
+  # before the image is pushed.
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to test (default: the ref of the caller)"
+        type: string
+        default: ""
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stack:
+    name: stack (${{ matrix.pmss }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pmss: release
+            image: ""   # default of compose.yaml, pinned with the submodule
+            gate: true
+          - pmss: edge
+            image: ghcr.io/noschvie/phylax-mqtt-security-service:edge
+            gate: false
+    continue-on-error: ${{ !matrix.gate }}
+    env:
+      PMSS_IMAGE: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: true
+      - name: Default PMSS image
+        if: matrix.image == ''
+        run: echo "PMSS_IMAGE=$(docker compose config --format json | jq -r .services.pmss.image)" >> "$GITHUB_ENV"
+      - name: Test PKI and DynSec state
+        run: stack/pmss/test/integration/broker/make-certs.sh stack/pmss/test/integration/broker/run
+      - name: Start Keycloak, Mosquitto, PMSS and the tester
+        run: docker compose up -d --build --wait --wait-timeout 240
+      - name: Wait for Keycloak
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8190/health/ready >/dev/null && exit 0
+            sleep 3
+          done
+          echo "Keycloak not ready" >&2
+          exit 1
+      - name: Stack smoke test
+        run: scripts/stack-smoke.sh
+      - name: Graceful shutdown of the tester
+        run: |
+          docker compose stop -t 20 pmss-api-tester
+          # SIGTERM must end with exit code 0.
+          test "$(docker inspect -f '{{.State.ExitCode}}' "$(docker compose ps -aq pmss-api-tester)")" = 0
+      - name: Summary
+        if: always()
+        run: |
+          echo "PMSS image: \`$PMSS_IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Save container logs
+        if: failure()
+        run: |
+          mkdir -p logs
+          for s in keycloak mosquitto pmss pmss-api-tester; do docker compose logs "$s" > "logs/$s.log" 2>&1; done
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: integration-logs-${{ matrix.pmss }}
+          path: logs
+      - name: Stop
+        if: always()
+        run: docker compose down -v
