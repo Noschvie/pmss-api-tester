@@ -38,6 +38,11 @@ jobs:
             echo "Generated code differs; run go generate ./... and commit the result." >&2
             exit 1
           fi
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: generated-templ
+          path: internal/**/*_templ.go
       - name: gofmt
         run: |
           unformatted=$(gofmt -l api cmd config internal)
