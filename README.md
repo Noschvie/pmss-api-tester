@@ -33,9 +33,33 @@ next start. The generated files are ignored inside the submodule.
 
 Open <http://127.0.0.1:8080> and sign in with a test user of the realm, `alice` or `bob`
 (password = user name, see the [realm README](https://github.com/Noschvie/phylax-mqtt-security-service/blob/v0.1.0/test/integration/keycloak/README.md)).
-`alice` has `security-admin` and must set up an OTP at the first sign-in. Use `127.0.0.1`, not
-`localhost`: by default the Keycloak issuer and the redirect URI of the `pmss-api-tester` client are
-`127.0.0.1`. Stop and remove the stack, including the broker data, with:
+Use `127.0.0.1`, not `localhost`: by default the Keycloak issuer and the redirect URI of the
+`pmss-api-tester` client are `127.0.0.1`. Both users get only `read` in the tester; `alice` must not
+gain `write` either, although she has `security-admin`.
+
+#### OTP for `alice`
+
+The realm requires a second factor for the realm role `security-admin`, so `alice` must set up an
+OTP at the first sign-in; `bob` signs in with the password only. Keycloak shows a QR code: scan it
+with an authenticator app (FreeOTP, Aegis, Google Authenticator, …) and enter the six-digit code.
+
+Without a phone, select **Unable to scan?** below the QR code, copy the secret and create the code
+on the command line with `oathtool` (Debian/Ubuntu: `sudo apt install oathtool`):
+
+```sh
+oathtool --totp -b 'SECRET WITHOUT SPACES'
+```
+
+The code is valid for 30 seconds; the clocks of the browser's machine and the stack machine must
+agree within about that window, otherwise Keycloak rejects it. Run the command again for every
+sign-in. The OTP stays configured until Keycloak is recreated: `docker compose down -v` or a new
+container (for example after changing `STACK_HOST`) imports the realm again, and `alice` sets up a new
+OTP at the next sign-in.
+
+To switch from `bob` to `alice`, log out in the tester first. Keycloak keeps its own session, and
+the next sign-in reuses it without asking for a password; a private browser window avoids this.
+
+Stop and remove the stack, including the broker data, with:
 
 ```sh
 docker compose down -v
