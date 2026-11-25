@@ -3,3 +3,6 @@
 **/*_test.go
 README.md
 docs
+node_modules
+test-results
+playwright-report
