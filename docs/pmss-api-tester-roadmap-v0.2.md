@@ -249,18 +249,20 @@ persistent history, and never retries broker failures automatically. Path-encodi
 ### Phase 5 – Quality Assurance and Delivery
 
 - [x] Unit tests for configuration, OpenAPI validation, and HTTP handlers
-- [ ] Table-driven unit tests for status evaluation, scopes, headers, ETags, RFC 9457 problem details, and `PASS`/`FAIL`/`BLOCKED`/`NOT TESTED`
-- [ ] Cover HTTP scenarios with `httptest.Server` and `httptest.ResponseRecorder`
+- [x] Table-driven unit tests for status evaluation, scopes, headers, ETags, RFC 9457 problem details, and `PASS`/`FAIL`/`BLOCKED`/`NOT TESTED`
+- [x] Cover HTTP scenarios with `httptest.Server` and `httptest.ResponseRecorder`
 - [x] Test the read-only restriction and Core/PMSS Extra separation
-- [ ] Integration tests for complete backend and HTTP processing
+- [x] Integration tests for complete backend and HTTP processing
 - [ ] Playwright E2E tests for login, the API Explorer, and central workflows
 - [ ] Limited visual regression tests following TasmoFleet conventions
 - [ ] Docker build and runtime test
 - [ ] Documented test run against a PMSS reference implementation
 
-Status: Table-driven response and problem-details tests and an anonymous end-to-end HTTP
-scenario are in place. Authenticated backend workflows, full HTTP scenario coverage, browser and
-visual tests, Docker verification, and a reference-implementation run remain outstanding.
+Status: Table-driven status, scope, header, ETag, and problem-details tests are in place. Local
+mock OIDC and PMSS servers exercise login callbacks, authenticated Explorer and Checks workflows,
+CSRF handling, missing parameters, absent read scope, and rejection of every non-GET OpenAPI
+operation. Browser E2E and visual tests, Docker verification, and a reference-implementation run
+remain outstanding.
 
 **Result:** A reproducibly buildable and testable release of the API Tester.
 

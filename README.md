@@ -41,9 +41,10 @@ With Go 1.26 or newer, run the Go tests from the repository root:
 go test ./...
 ```
 
-The suite includes unit tests and HTTP tests with local mock servers, including an anonymous
-read-only checks workflow. It does not replace an authenticated integration test against a real
-Keycloak and PMSS instance, browser or visual regression tests, or Docker runtime verification.
+The suite includes table-driven unit tests and authenticated HTTP integration tests with local mock
+OIDC and PMSS servers, including checks that every non-GET OpenAPI operation is blocked. It does
+not replace a test run against a real Keycloak and PMSS instance, browser or visual regression
+tests, or Docker runtime verification.
 
 ## Keycloak login (Phase 2)
 

@@ -166,16 +166,37 @@ func TestSessionTokenAndCSRFProtectedLogout(t *testing.T) {
 }
 
 func TestPMSSAccessTokenRequiresReadScope(t *testing.T) {
-	service := New(config.OIDCConfig{})
-	service.sessions["session"] = &Session{
-		ExpiresAt:      time.Now().Add(time.Hour),
-		exchangedToken: "no-read-token",
+	tests := []struct {
+		name         string
+		scopes       []string
+		hasReadScope bool
+		token        string
+		wantToken    string
+		wantOK       bool
+	}{
+		{"read scope", []string{"read"}, true, "read-token", "read-token", true},
+		{"read with additional scope", []string{"write", "read"}, true, "read-token", "read-token", true},
+		{"write only", []string{"write"}, false, "write-token", "", false},
+		{"missing scope flag", []string{"read"}, false, "read-token", "", false},
+		{"no scopes", nil, false, "unscoped-token", "", false},
 	}
-	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	request.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "session"})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := New(config.OIDCConfig{})
+			service.sessions["session"] = &Session{
+				Scopes:         tt.scopes,
+				HasReadScope:   tt.hasReadScope,
+				ExpiresAt:      time.Now().Add(time.Hour),
+				exchangedToken: tt.token,
+			}
+			request := httptest.NewRequest(http.MethodGet, "/", nil)
+			request.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "session"})
 
-	if token, ok := service.PMSSAccessToken(request); ok || token != "" {
-		t.Fatalf("PMSSAccessToken = %q, %t, want blocked", token, ok)
+			token, ok := service.PMSSAccessToken(request)
+			if token != tt.wantToken || ok != tt.wantOK {
+				t.Fatalf("PMSSAccessToken() = %q, %t; want %q, %t", token, ok, tt.wantToken, tt.wantOK)
+			}
+		})
 	}
 }
 

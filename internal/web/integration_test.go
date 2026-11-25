@@ -10,9 +10,12 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	"github.com/noschvie/pmss-api-tester/api"
 	"github.com/noschvie/pmss-api-tester/internal/config"
+	"github.com/noschvie/pmss-api-tester/internal/openapi"
 )
 
 func TestAnonymousHTTPWorkflowIsReadOnly(t *testing.T) {
@@ -30,6 +33,7 @@ func TestAnonymousHTTPWorkflowIsReadOnly(t *testing.T) {
 		default:
 			http.NotFound(w, r)
 		}
+
 	}))
 	defer target.Close()
 
@@ -101,5 +105,47 @@ func TestAnonymousHTTPWorkflowIsReadOnly(t *testing.T) {
 	case request := <-requests:
 		t.Fatalf("unexpected target request: %s", request)
 	default:
+	}
+}
+
+func TestAPIExplorerBlocksEveryNonGETOperation(t *testing.T) {
+	var requests atomic.Int64
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		http.NotFound(w, r)
+	}))
+	defer target.Close()
+
+	handler := mustNewHandler(t, config.Config{
+		PMSSAPIBaseURL: target.URL, PMSSAllowInsecureHTTP: true,
+	})
+	operations, err := openapi.Catalog(api.Definition())
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOperations := 0
+	for _, operation := range operations {
+		if operation.Method == http.MethodGet {
+			continue
+		}
+		writeOperations++
+		request := httptest.NewRequest(http.MethodPost, "/api-explorer/execute", strings.NewReader(url.Values{
+			"operation_id": {operation.ID},
+			"method":       {operation.Method},
+		}.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusForbidden ||
+			!strings.Contains(response.Body.String(), "BLOCKED") ||
+			!strings.Contains(response.Body.String(), "Only GET requests") {
+			t.Errorf("%s %s returned %d, body %s", operation.Method, operation.ID, response.Code, response.Body.String())
+		}
+	}
+	if writeOperations == 0 {
+		t.Fatal("OpenAPI catalog contains no non-GET operations to verify")
+	}
+	if count := requests.Load(); count != 0 {
+		t.Fatalf("%d write operations reached the PMSS target", count)
 	}
 }
