@@ -174,6 +174,39 @@ or changed baseline fails the comparison; never update snapshots automatically i
 review all references deliberately when changing the pinned Playwright image, browser or fonts.
 The initial reference images still need to be generated and reviewed in that container.
 
+### Stack smoke test
+
+With the [complete test stack](#complete-test-stack) running, check the tester against the real
+PMSS and Keycloak, anonymously and without a browser:
+
+```sh
+scripts/stack-smoke.sh                         # default http://127.0.0.1:8080 and :8180
+scripts/stack-smoke.sh http://<STACK_HOST>:8080 http://<STACK_HOST>:8180
+```
+
+The script checks `/healthz`, the overview page, the anonymous checks (availability, missing and
+invalid token must pass, no check may fail) and that sign-in redirects to the realm `pmss-test`
+with PKCE.
+
+## CI and releases
+
+| Workflow | Trigger | Content |
+|---|---|---|
+| [`ci.yml`](.github/workflows/ci.yml) | pull request, called by `release.yml` | `go mod tidy`, generated templ code, `gofmt`, `go vet`, `go test -race`, Playwright flows (`test:e2e`), multi-arch build without push |
+| [`integration.yml`](.github/workflows/integration.yml) | pull request, called by `release.yml`, manual | Complete test stack with the pinned PMSS release and `scripts/stack-smoke.sh`; the same against `pmss:edge` as a non-blocking early warning |
+| [`release.yml`](.github/workflows/release.yml) | push to `main`, tag `vX.Y.Z`, weekly, manual | After both workflows pass: build for linux/amd64 and linux/arm64 and push to `ghcr.io/noschvie/pmss-api-tester` |
+
+Image tags: `edge` and `sha-<commit>` for `main`, `vX.Y.Z` for a release tag. A release tag also
+creates a GitHub release with generated notes. The weekly run rebuilds `edge` and the newest release
+tag with fresh base images (same tag, new digest); pin the digest for a fixed image. The visual
+regression tests are not part of CI until reference images are checked in.
+
+The binary reports its version with `pmss-api-tester version` (`dev` for local builds):
+
+```sh
+docker run --rm ghcr.io/noschvie/pmss-api-tester:v0.1.0 version
+```
+
 ## Keycloak login (Phase 2)
 
 The login is optional until OIDC is configured. The test realm `pmss-test` of the Security Service

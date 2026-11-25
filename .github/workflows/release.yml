@@ -1,0 +1,199 @@
+name: Release
+
+# Build and push of the tester image: CI and integration tests first, then
+# a multi-arch build (linux/amd64, linux/arm64) and the push to ghcr.io –
+# only if all tests pass.
+#
+#   push to main          → edge, sha-<commit>
+#   tag vX.Y.Z            → vX.Y.Z, plus a GitHub release with generated notes
+#   pull request          → dry run without push (release files only)
+#   weekly / manual run   → rebuild of main (edge) and of the newest
+#                           release tag (same tag, new digest), so Go patch
+#                           releases and base image updates arrive
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  schedule:
+    - cron: "37 3 * * 1" # Monday 03:37 UTC
+  workflow_dispatch:
+  # Dry run without push when the release itself changes.
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - Dockerfile
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/noschvie/pmss-api-tester
+  DESCRIPTION: Read-only API explorer and conformance tester for the MQTT Security Service API.
+
+jobs:
+  targets:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.t.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: t
+        name: What to build
+        run: |
+          edge() {
+            sha=$(git rev-parse "$1")
+            echo "{\"ref\":\"$sha\",\"version\":\"edge-${sha:0:7}\",\"tags\":\"$IMAGE:edge,$IMAGE:sha-${sha:0:7}\"}"
+          }
+          release() {
+            echo "{\"ref\":\"refs/tags/$1\",\"version\":\"$1\",\"tags\":\"$IMAGE:$1\"}"
+          }
+          case "$GITHUB_EVENT_NAME/$GITHUB_REF" in
+            push/refs/tags/*)
+              items=$(release "$GITHUB_REF_NAME") ;;
+            push/refs/heads/main)
+              items=$(edge HEAD) ;;
+            pull_request/*)
+              sha=$(git rev-parse HEAD)
+              items="{\"ref\":\"$sha\",\"version\":\"pr-${sha:0:7}\",\"tags\":\"$IMAGE:pr-${sha:0:7}\"}" ;;
+            schedule/*|workflow_dispatch/refs/heads/main)
+              items=$(edge origin/main)
+              # Newest release without pre-release suffix.
+              latest=$(git tag -l 'v*.*.*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)
+              [ -n "$latest" ] && items="$items,$(release "$latest")" ;;
+            *)
+              echo "Manual runs only from main" >&2; exit 1 ;;
+          esac
+          echo "matrix={\"include\":[$items]}" >> "$GITHUB_OUTPUT"
+          echo "Targets: [$items]"
+
+  ci:
+    name: ci ${{ matrix.version }}
+    needs: targets
+    strategy:
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ matrix.ref }}
+
+  integration:
+    name: integration ${{ matrix.version }}
+    needs: targets
+    strategy:
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
+    uses: ./.github/workflows/integration.yml
+    with:
+      ref: ${{ matrix.ref }}
+
+  image:
+    name: image ${{ matrix.version }}
+    needs: [targets, ci, integration]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - id: meta
+        name: Labels
+        run: |
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        name: Build and push (linux/amd64, linux/arm64; no push for pull requests)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          # Always fresh base images (golang alpine, distroless static).
+          pull: true
+          no-cache: true
+          sbom: true
+          provenance: mode=max
+          build-args: VERSION=${{ matrix.version }}
+          tags: ${{ matrix.tags }}
+          labels: |
+            org.opencontainers.image.title=pmss-api-tester
+            org.opencontainers.image.description=${{ env.DESCRIPTION }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.version=${{ matrix.version }}
+            org.opencontainers.image.revision=${{ steps.meta.outputs.revision }}
+            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+          annotations: |
+            index:org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            index:org.opencontainers.image.description=${{ env.DESCRIPTION }}
+            index:org.opencontainers.image.licenses=AGPL-3.0-or-later
+      - name: Check the pushed image
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          docker buildx imagetools inspect "$IMAGE@$DIGEST"
+          for p in linux/amd64 linux/arm64; do
+            arch="${p#linux/}"
+            docker buildx imagetools inspect "$IMAGE@$DIGEST" \
+              --format '{{json .Manifest}}' |
+              jq -e --arg arch "$arch" \
+                'any(.manifests[]; .platform.os == "linux" and .platform.architecture == $arch)' \
+                > /dev/null
+          done
+          v=$(docker run --rm --platform linux/amd64 "$IMAGE@$DIGEST" version)
+          echo "$v"
+          test "$v" = "${{ matrix.version }}"
+          test "$(docker inspect -f '{{.Config.User}}' "$IMAGE@$DIGEST")" = "nonroot:nonroot"
+      - name: Summary
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          {
+            echo "### ${{ matrix.version }}"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Tags | \`${{ matrix.tags }}\` |"
+            echo "| Digest | \`$DIGEST\` |"
+            echo "| Commit | \`${{ steps.meta.outputs.revision }}\` |"
+            echo
+            echo "Pin the digest, e.g. \`image: $IMAGE@$DIGEST\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Only for a pushed tag; the weekly rebuild of a tag leaves the release alone.
+  github-release:
+    needs: image
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && {
+            echo "Release $TAG exists already"; exit 0; }
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "$TAG" --generate-notes \
+            --notes "Image: \`$IMAGE:$TAG\`"
