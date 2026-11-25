@@ -44,17 +44,24 @@ OTP at the first sign-in; `bob` signs in with the password only. Keycloak shows 
 with an authenticator app (FreeOTP, Aegis, Google Authenticator, …) and enter the six-digit code.
 
 Without a phone, select **Unable to scan?** below the QR code, copy the secret and create the code
-on the command line with `oathtool` (Debian/Ubuntu: `sudo apt install oathtool`):
+with [`scripts/totp.sh`](scripts/totp.sh):
 
 ```sh
-oathtool --totp -b 'SECRET WITHOUT SPACES'
+scripts/totp.sh        # asks for the secret, prints the code and how long it is valid
+scripts/totp.sh -w     # prints a new code every 30 seconds until Ctrl+C
 ```
 
-The code is valid for 30 seconds; the clocks of the browser's machine and the stack machine must
-agree within about that window, otherwise Keycloak rejects it. Run the command again for every
-sign-in. The OTP stays configured until Keycloak is recreated: `docker compose down -v` or a new
-container (for example after changing `STACK_HOST`) imports the realm again, and `alice` sets up a new
-OTP at the next sign-in.
+Paste the secret as Keycloak shows it; spaces and lower case are accepted. The script asks for it
+without echoing, so it does not end up in the shell history; `TOTP_SECRET=… scripts/totp.sh` works
+as well. It computes TOTP as Keycloak configures it by default (SHA-1, six digits, 30 seconds) with
+`python3` (3.7 or newer, present on most Linux systems including Raspberry Pi OS) and falls back to
+`oathtool` if Python is missing (Debian/Ubuntu/Raspberry Pi OS: `sudo apt install oathtool`).
+
+The clocks of the machine that creates the code (phone or the machine running the script) and the
+stack machine must agree within about 30 seconds, otherwise Keycloak rejects the code. Every sign-in
+needs a new code. The OTP stays configured until Keycloak is recreated: `docker compose down -v` or a
+new container (for example after changing `STACK_HOST`) imports the realm again, and `alice` sets up
+a new OTP at the next sign-in.
 
 To switch from `bob` to `alice`, log out in the tester first. Keycloak keeps its own session, and
 the next sign-in reuses it without asking for a password; a private browser window avoids this.
