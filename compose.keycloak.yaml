@@ -1,0 +1,13 @@
+# Override for the Keycloak service of the Security Service (included by
+# compose.yaml). Makes the public host of the stack configurable, so
+# a browser on another machine can sign in. Default: 127.0.0.1, as in the
+# integration environment of the Security Service.
+
+services:
+  keycloak:
+    environment:
+      # Issuer of all tokens; the browser reaches Keycloak at this address.
+      KC_HOSTNAME: http://${STACK_HOST:-127.0.0.1}:8180
+      # Redirect URIs of client pmss-api-tester, resolved during the realm
+      # import at container start.
+      PMSS_API_TESTER_URL: http://${STACK_HOST:-127.0.0.1}:8080

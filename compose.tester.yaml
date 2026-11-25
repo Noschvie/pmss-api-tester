@@ -1,0 +1,26 @@
+# The tester alone, against another PMSS and Keycloak (for example an
+# installation with HTTPS). All settings come from .env, see .env.example.
+# For the complete test stack use compose.yaml.
+#
+#   cp .env.example .env    # then set target, issuer and client secret
+#   docker compose -f compose.tester.yaml up -d --build
+#   docker compose -f compose.tester.yaml down
+
+name: pmss-api-tester
+
+services:
+  pmss-api-tester:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Europe/Vienna
+      PMSS_API_BASE_URL: ${PMSS_API_BASE_URL:-}
+      PMSS_ALLOW_INSECURE_HTTP: ${PMSS_ALLOW_INSECURE_HTTP:-false}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      OIDC_INTERNAL_URL: ${OIDC_INTERNAL_URL:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_CALLBACK_URL: ${OIDC_CALLBACK_URL:-http://localhost:8080/auth/callback}
+      OIDC_COOKIE_SECURE: ${OIDC_COOKIE_SECURE:-true}
+      PMSS_AUDIENCE: ${PMSS_AUDIENCE:-phylax-mqtt-security-service}

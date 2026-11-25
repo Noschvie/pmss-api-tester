@@ -6,13 +6,22 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"slices"
 	"testing"
 )
 
+// realmPath is the test realm of the Security Service, pinned by the
+// submodule stack/pmss. It is the only copy; the tester keeps none.
+const realmPath = "../stack/pmss/test/integration/keycloak/realm/pmss-test-realm.json"
+
 func TestTesterRealmConfiguration(t *testing.T) {
-	data, err := os.ReadFile("pmss-test-realm.json")
+	data, err := os.ReadFile(realmPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		t.Skip("submodule stack/pmss not checked out; run git submodule update --init")
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,8 +68,8 @@ func TestTesterRealmConfiguration(t *testing.T) {
 			!client.StandardFlow || client.ImplicitFlow || client.DirectGrants || client.ServiceAccount {
 			t.Fatal("tester client has incorrect authentication flows")
 		}
-		if !slices.Equal(client.Redirects, []string{"http://192.168.7.39:8080/auth/callback"}) ||
-			client.Attributes["post.logout.redirect.uris"] != "http://192.168.7.39:8080/" ||
+		if !slices.Equal(client.Redirects, []string{"${PMSS_API_TESTER_URL:http://127.0.0.1:8080}/auth/callback"}) ||
+			client.Attributes["post.logout.redirect.uris"] != "${PMSS_API_TESTER_URL:http://127.0.0.1:8080}/" ||
 			client.Attributes["pkce.code.challenge.method"] != "S256" ||
 			client.Attributes["standard.token.exchange.enabled"] != "true" {
 			t.Fatal("tester client has incorrect redirects, PKCE or token exchange settings")

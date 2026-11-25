@@ -4,16 +4,102 @@ A Go-based, read-only API explorer and conformance tester for the MQTT Security 
 
 ## Run
 
-Build and start the application with Docker Compose:
+### Complete test stack
+
+[`compose.yaml`](compose.yaml) starts everything the tester needs in one Compose project:
+
+| Service | Source | Host port | Role |
+|---|---|---|---|
+| `keycloak` | Keycloak 26.8.2 with realm `pmss-test`, from the submodule | 8180, 8190 (health) | Token issuer |
+| `mosquitto` | Mosquitto 2.1.2 with Dynamic Security and test PKI, from the submodule | 127.0.0.1:18883, 127.0.0.1:18884 | Broker |
+| `pmss` | Image `ghcr.io/noschvie/phylax-mqtt-security-service:v0.1.0` | 127.0.0.1:18080 | Service under test |
+| `pmss-api-tester` | Built from this repository | 127.0.0.1:8080 | Tester |
+
+Keycloak and Mosquitto are included from the integration environment of the Security Service.
+The submodule [`stack/pmss`](https://github.com/Noschvie/phylax-mqtt-security-service) pins it to
+tag `v0.1.0`, the same release as the service image. The tester keeps no copy of the realm or the
+broker configuration.
 
 ```sh
-# Start the pmss-it integration stack first so its external Docker network exists.
-docker compose up --build -d
+git submodule update --init
+stack/pmss/test/integration/broker/make-certs.sh stack/pmss/test/integration/broker/run
+docker compose up -d --build --wait
 ```
 
-The Compose setup joins the existing `pmss-it_default` network automatically. Stop and remove the
-container with `docker compose down`. To use a different host port, change the first port in the
-`ports` mapping in `compose.yaml` (for example, `8081:8080`).
+`make-certs.sh` creates the test PKI and the Dynamic Security state. Pass the directory explicitly:
+without an argument the script writes to `./run` relative to the current directory, and the broker
+would not find its certificates. The keys are valid for two days; run the script again before the
+next start. The generated files are ignored inside the submodule.
+
+Open <http://127.0.0.1:8080> and sign in with a test user of the realm, `alice` or `bob`
+(password = user name, see the [realm README](https://github.com/Noschvie/phylax-mqtt-security-service/blob/v0.1.0/test/integration/keycloak/README.md)).
+`alice` has `security-admin` and must set up an OTP at the first sign-in. Use `127.0.0.1`, not
+`localhost`: by default the Keycloak issuer and the redirect URI of the `pmss-api-tester` client are
+`127.0.0.1`. Stop and remove the stack, including the broker data, with:
+
+```sh
+docker compose down -v
+```
+
+#### Browser on another machine
+
+If the stack runs on a machine without a browser, set the address under which the browser reaches
+that machine, in an untracked `.env` file next to `compose.yaml` or in the environment:
+
+```env
+STACK_HOST=hadersdorf      # host name or IP of the stack machine, as seen by the browser
+STACK_BIND=0.0.0.0         # publish the tester port on all interfaces, not only 127.0.0.1
+```
+
+| Variable | Default | Used for |
+|---|---|---|
+| `STACK_HOST` | `127.0.0.1` | `KC_HOSTNAME` (issuer of all tokens), redirect URIs of client `pmss-api-tester`, issuer of the service and the tester, `OIDC_CALLBACK_URL` |
+| `STACK_BIND` | `127.0.0.1` | Host interface of the tester port 8080 |
+
+Then start the stack as above and open `http://<STACK_HOST>:8080` on the other machine, with exactly
+that host name (the callback and the session cookie are bound to it). The browser needs ports 8080
+(tester) and 8180 (Keycloak sign-in) of the stack machine; Keycloak is published on all interfaces
+by the Security Service's Compose file. Mosquitto and the service stay bound to `127.0.0.1`.
+`STACK_HOST` only has to resolve on the browser's machine: the tester and the service reach Keycloak
+inside the Compose network as `keycloak:8080`.
+
+[`compose.keycloak.yaml`](compose.keycloak.yaml) sets `KC_HOSTNAME` and
+`PMSS_API_TESTER_URL` of the included Keycloak service; the Security Service's files stay unchanged.
+The redirect URIs are resolved during the realm import, so recreate Keycloak after changing
+`STACK_HOST` (`docker compose up -d` does this when the variable changed).
+
+Keycloak serves plain HTTP here. The realm keeps Keycloak's default `sslRequired = external`, which
+allows HTTP only from private addresses (for example `192.168.x.x` or `10.x.x.x`). Use the stack only
+in an isolated test network: tokens, passwords and OTP codes cross the network unencrypted.
+
+To update to a newer PMSS release, move the submodule and the image tag together:
+
+```sh
+git -C stack/pmss fetch --depth 1 origin tag vX.Y.Z
+git -C stack/pmss checkout vX.Y.Z
+# change the default of PMSS_IMAGE in compose.yaml to :vX.Y.Z
+```
+
+`PMSS_IMAGE` overrides the image for a single run, for example to test `:edge`; the Keycloak and
+broker configuration still comes from the submodule.
+
+### Tester only, against another target
+
+[`compose.tester.yaml`](compose.tester.yaml) starts only the tester, for example against a PMSS
+installation with HTTPS and its own Keycloak. All settings come from an untracked `.env` file; copy
+[`.env.example`](.env.example) and set the target, the issuer and the client secret (see
+[Keycloak login](#keycloak-login-phase-2) and [API Explorer](#api-explorer-phase-3)):
+
+```sh
+cp .env.example .env
+docker compose -f compose.tester.yaml up -d --build
+```
+
+Stop and remove the container with `docker compose -f compose.tester.yaml down`. To use a different
+host port, change the first port in the `ports` mapping in `compose.tester.yaml` (for example,
+`8081:8080`). `compose.yaml` and `compose.tester.yaml` use separate Compose projects
+(`pmss-api-tester-stack`, `pmss-api-tester`) but publish the same port 8080; stop one before starting
+the other.
 
 Alternatively, build and run the image directly with Docker:
 
@@ -90,33 +176,40 @@ The initial reference images still need to be generated and reviewed in that con
 
 ## Keycloak login (Phase 2)
 
-The login is optional until OIDC is configured. `config/pmss-test-realm.json` defines a dedicated
-confidential `pmss-api-tester` client for the test realm, with Standard Flow, PKCE `S256`, Standard
-Token Exchange and the optional `read` scope. The scope's audience mapper targets
-`phylax-mqtt-security-service`; the tester client cannot request `write`. The configuration requires
-Keycloak 26.2 or newer with Standard Token Exchange enabled.
+The login is optional until OIDC is configured. The test realm `pmss-test` of the Security Service
+(`stack/pmss/test/integration/keycloak/realm/pmss-test-realm.json`, pinned by the submodule) defines
+a dedicated confidential `pmss-api-tester` client with Standard Flow, PKCE `S256`, Standard Token
+Exchange and the optional `read` scope. The scope's audience mapper targets
+`phylax-mqtt-security-service`; the tester client cannot request `write`. `config/realm_test.go`
+checks these settings in the pinned realm and is skipped when the submodule is not checked out. The
+configuration requires Keycloak 26.2 or newer with Standard Token Exchange enabled.
 
-Import the realm into a **new test realm**, or create the client with the same settings in an existing
-realm. Keycloak's startup realm import skips realms that already exist; changing the JSON alone does
-not update a running realm. Do not overwrite an existing realm just to add this client.
+The complete test stack (see [Run](#complete-test-stack)) imports this realm and configures the
+tester with the fixed test secret `pmss-api-tester-secret`; nothing else is needed. For another
+Keycloak instance, import the realm into a **new test realm**, or create the client with the same
+settings in an existing realm. Keycloak's startup realm import skips realms that already exist;
+changing the JSON alone does not update a running realm. Do not overwrite an existing realm just to
+add this client.
 
-After creating the client, obtain its generated secret under **Clients → pmss-api-tester →
-Credentials** in the Keycloak admin console and place it in an untracked `.env` file. Do not put the
-secret in source control. The supplied realm contains test users and credentials and is intended
-only for an isolated test instance.
+With a client created in another realm, obtain its generated secret under **Clients →
+pmss-api-tester → Credentials** in the Keycloak admin console and place it in an untracked `.env`
+file. Do not put the secret in source control. The test realm contains test users and credentials
+and is intended only for an isolated test instance.
 
-The supplied realm's redirect URI is `http://192.168.7.39:8080/auth/callback` and its post-logout
-redirect URI is `http://192.168.7.39:8080/`. If the tester is accessed at another origin, update both URIs on the
-Keycloak client and set `OIDC_CALLBACK_URL` accordingly.
+The redirect URI of the realm's client is `${PMSS_API_TESTER_URL}/auth/callback` and its post-logout
+redirect URI is `${PMSS_API_TESTER_URL}/`, resolved during the realm import (default
+`http://127.0.0.1:8080`). If the tester is accessed at another origin, set `PMSS_API_TESTER_URL` for
+Keycloak before the first import and set `OIDC_CALLBACK_URL` accordingly.
 
-Set these variables in the environment used to start Compose (or in an untracked `.env` file):
+For [`compose.tester.yaml`](compose.tester.yaml), set these variables in the environment used to
+start Compose (or in an untracked `.env` file); the complete test stack sets them itself:
 
 ```env
-OIDC_ISSUER_URL=http://192.168.7.39:8180/realms/pmss-test
+OIDC_ISSUER_URL=http://127.0.0.1:8180/realms/pmss-test
 OIDC_INTERNAL_URL=
 OIDC_CLIENT_ID=pmss-api-tester
 OIDC_CLIENT_SECRET=<client-secret>
-OIDC_CALLBACK_URL=http://192.168.7.39:8080/auth/callback
+OIDC_CALLBACK_URL=http://127.0.0.1:8080/auth/callback
 OIDC_COOKIE_SECURE=false
 PMSS_AUDIENCE=phylax-mqtt-security-service
 ```
@@ -129,9 +222,8 @@ while discovery and ID-token issuer validation continue to use the canonical iss
 at the same origin as `OIDC_CALLBACK_URL` so the callback and session cookie use the same host. Set
 `OIDC_COOKIE_SECURE=true` when serving the tester over HTTPS.
 
-When using the integration-stack hostname `keycloak:8080` for `OIDC_INTERNAL_URL`, start the
-upstream integration stack before starting this Compose project. The tester then joins its
-`pmss-it_default` network automatically, including after the container is recreated.
+The complete test stack uses this rewrite: the issuer is `http://<STACK_HOST>:8180/realms/pmss-test`,
+and `OIDC_INTERNAL_URL` points to `keycloak:8080` inside its Compose network.
 
 After login, the backend validates the OIDC ID token and exchanges the user's access token using
 RFC 8693, requesting only `read` and the configured audience. Access tokens and session data are
@@ -148,7 +240,8 @@ the user and `read` access, then execute a GET against a configured PMSS endpoin
 
 ## API Explorer (Phase 3)
 
-Set the target's HTTPS base URL in the environment or `.env` file:
+For [`compose.tester.yaml`](compose.tester.yaml), set the target's HTTPS base URL in the environment
+or `.env` file; the complete test stack uses `http://pmss:8080` inside its Compose network:
 
 ```env
 PMSS_API_BASE_URL=https://pmss.example.org
@@ -160,12 +253,12 @@ HTTPS is required by default, with normal certificate verification. For an isola
 test environment only, explicitly enable unencrypted HTTP:
 
 ```env
-PMSS_API_BASE_URL=http://192.168.7.39:18080
+PMSS_API_BASE_URL=http://192.0.2.10:18080
 PMSS_ALLOW_INSECURE_HTTP=true
 ```
 
-In this example, port `18080` is the integration stack's published PMSS port on the Docker host;
-the tester container must be able to reach that address. HTTP sends the user's bearer token and
+In this example, `192.0.2.10:18080` stands for the published port of an isolated test PMSS; the
+tester container must be able to reach that address. HTTP sends the user's bearer token and
 responses unencrypted and does not authenticate the target. Anyone with network access to the
 traffic may read, modify, or replay the token; never enable this for production or untrusted
 networks. The application logs a warning at startup and displays one in the explorer when using
@@ -173,7 +266,7 @@ HTTP. The flag does not disable TLS certificate verification for HTTPS, affect O
 change the read-only restriction. Recreate the container after changing `.env`:
 
 ```sh
-docker compose up --build -d
+docker compose -f compose.tester.yaml up --build -d
 ```
 
 Leave `PMSS_API_BASE_URL` empty to browse the embedded specification without executing calls. Open **API Explorer**
