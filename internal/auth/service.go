@@ -203,6 +203,16 @@ func (s *Service) CompleteLogin(ctx context.Context, state, code string) (string
 	return sessionID, session, nil
 }
 
+// SessionID returns the session ID from the cookie of r, whether or not
+// the session is still active.
+func (s *Service) SessionID(r *http.Request) string {
+	cookie, err := r.Cookie(sessionCookieName)
+	if err != nil {
+		return ""
+	}
+	return cookie.Value
+}
+
 func (s *Service) Session(r *http.Request) (*Session, string) {
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil || cookie.Value == "" {
@@ -236,22 +246,57 @@ func (s *Service) ValidateCSRF(r *http.Request, token string) bool {
 		subtle.ConstantTimeCompare([]byte(session.CSRFToken), []byte(token)) == 1
 }
 
-func (s *Service) Logout(sessionID, csrfToken string) (string, bool) {
+// LogoutResult tells the logout handler how to answer.
+type LogoutResult int
+
+const (
+	// LogoutDone: the session existed and the CSRF token matched; the
+	// session is deleted.
+	LogoutDone LogoutResult = iota
+	// LogoutNoSession: there is no active session for the cookie, for
+	// example because it expired with the login access token or the tester
+	// was restarted. Nothing to protect, so no CSRF check applies.
+	LogoutNoSession
+	// LogoutInvalidCSRF: an active session with a wrong CSRF token.
+	LogoutInvalidCSRF
+)
+
+// Logout ends the session sessionID. An expired session that is still
+// stored is ended with its own CSRF token as well, so its ID token can
+// serve as id_token_hint; with a wrong token it counts as no session.
+func (s *Service) Logout(sessionID, csrfToken string) (string, LogoutResult) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	session, ok := s.sessions[sessionID]
-	if !ok || subtle.ConstantTimeCompare([]byte(session.CSRFToken), []byte(csrfToken)) != 1 {
-		return "", false
+	if !ok || sessionID == "" {
+		return "", LogoutNoSession
 	}
-	delete(s.sessions, sessionID)
-	return session.idToken, true
+	if csrfToken != "" && subtle.ConstantTimeCompare([]byte(session.CSRFToken), []byte(csrfToken)) == 1 {
+		delete(s.sessions, sessionID)
+		return session.idToken, LogoutDone
+	}
+	if !time.Now().Before(session.ExpiresAt) {
+		delete(s.sessions, sessionID)
+		return "", LogoutNoSession
+	}
+	return "", LogoutInvalidCSRF
 }
 
-func (s *Service) EndSessionURL(idToken, redirectURI string) string {
-	if s.endSession == "" {
+// EndSessionURL returns the RP-initiated logout URL of the provider, or "/"
+// when the provider advertises none or cannot be reached. client_id is
+// always sent: without id_token_hint, Keycloak needs it to accept
+// post_logout_redirect_uri and asks the user to confirm the logout.
+func (s *Service) EndSessionURL(ctx context.Context, idToken, redirectURI string) string {
+	if !s.Enabled() || s.ensureProvider(ctx) != nil {
 		return "/"
 	}
-	endpoint, err := url.Parse(s.endSession)
+	s.providerMu.Lock()
+	endSession := s.endSession
+	s.providerMu.Unlock()
+	if endSession == "" {
+		return "/"
+	}
+	endpoint, err := url.Parse(endSession)
 	if err != nil {
 		return "/"
 	}
@@ -259,6 +304,7 @@ func (s *Service) EndSessionURL(idToken, redirectURI string) string {
 	if idToken != "" {
 		query.Set("id_token_hint", idToken)
 	}
+	query.Set("client_id", s.cfg.ClientID)
 	query.Set("post_logout_redirect_uri", redirectURI)
 	endpoint.RawQuery = query.Encode()
 	return endpoint.String()

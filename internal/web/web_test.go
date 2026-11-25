@@ -142,13 +142,14 @@ func TestUnknownRouteReturnsNotFound(t *testing.T) {
 	}
 }
 
-func TestLogoutRequiresSessionAndCSRFToken(t *testing.T) {
+func TestLogoutWithoutSessionRedirectsHome(t *testing.T) {
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/auth/logout", strings.NewReader("csrf_token=forged"))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.AddCookie(&http.Cookie{Name: "pmss_session", Value: "unknown"})
 	mustNewHandler(t, config.Config{}).ServeHTTP(response, request)
-	if response.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want %d", response.Code, http.StatusForbidden)
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/" {
+		t.Fatalf("status = %d, Location %q; want %d to /", response.Code, response.Header().Get("Location"), http.StatusSeeOther)
 	}
 }
 

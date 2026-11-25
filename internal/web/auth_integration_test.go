@@ -64,6 +64,7 @@ func (p *mockOIDCProvider) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			"authorization_endpoint":                p.server.URL + "/authorize",
 			"token_endpoint":                        p.server.URL + "/realms/test/token",
 			"jwks_uri":                              p.server.URL + "/realms/test/jwks",
+			"end_session_endpoint":                  p.server.URL + "/realms/test/logout",
 			"response_types_supported":              []string{"code"},
 			"subject_types_supported":               []string{"public"},
 			"id_token_signing_alg_values_supported": []string{"RS256"},
@@ -280,6 +281,7 @@ func TestAuthenticatedHTTPWorkflowsEnforceScopeCSRFAndParameters(t *testing.T) {
 	if response.Code != http.StatusSeeOther || !hasClearedCookie(response.Result().Cookies(), "pmss_session") {
 		t.Fatalf("logout response = %d, cookies %v; want redirect and cleared session cookie", response.Code, response.Result().Cookies())
 	}
+	assertEndSessionRedirect(t, response, provider, true)
 
 	provider.setExchangeScope("write")
 	noReadSession := loginTestSession(t, handler, provider)
@@ -494,4 +496,74 @@ func hasClearedCookie(cookies []*http.Cookie, name string) bool {
 		}
 	}
 	return false
+}
+
+// A logout without an active session (expired with the access token, or
+// lost by a restart of the tester) still clears the cookie and ends the
+// provider session; without an ID token only client_id identifies the
+// client, so the provider asks the user to confirm.
+func TestLogoutWithoutActiveSessionEndsProviderSession(t *testing.T) {
+	provider := newMockOIDCProvider(t)
+	handler, err := NewHandler(config.Config{
+		OIDC: config.OIDCConfig{
+			IssuerURL:    provider.issuer,
+			ClientID:     testOIDCClientID,
+			ClientSecret: testOIDCClientSecret,
+			CallbackURL:  "http://tester.example/auth/callback",
+			Audience:     "pmss-test",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name   string
+		cookie *http.Cookie
+		csrf   string
+	}{
+		{name: "unknown session cookie", cookie: &http.Cookie{Name: "pmss_session", Value: "lost-by-restart"}, csrf: "stale-token"},
+		{name: "no session cookie", csrf: "stale-token"},
+		{name: "no session cookie and no token"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			values := url.Values{}
+			if test.csrf != "" {
+				values.Set("csrf_token", test.csrf)
+			}
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, formRequest(http.MethodPost, "/auth/logout", values, test.cookie))
+			if response.Code != http.StatusSeeOther || !hasClearedCookie(response.Result().Cookies(), "pmss_session") {
+				t.Fatalf("logout = %d, cookies %v; want redirect and cleared session cookie", response.Code, response.Result().Cookies())
+			}
+			assertEndSessionRedirect(t, response, provider, false)
+		})
+	}
+
+	// An active session with a wrong token is still rejected.
+	session := loginTestSession(t, handler, provider)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, formRequest(http.MethodPost, "/auth/logout", url.Values{"csrf_token": {"forged"}}, session.cookie))
+	if response.Code != http.StatusForbidden || hasClearedCookie(response.Result().Cookies(), "pmss_session") {
+		t.Fatalf("logout of an active session with a forged token = %d, cookies %v; want 403 and no cleared cookie", response.Code, response.Result().Cookies())
+	}
+}
+
+func assertEndSessionRedirect(t *testing.T, response *httptest.ResponseRecorder, provider *mockOIDCProvider, wantHint bool) {
+	t.Helper()
+	location, err := url.Parse(response.Header().Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if location.Scheme+"://"+location.Host+location.Path != provider.server.URL+"/realms/test/logout" {
+		t.Fatalf("logout redirect = %q, want the end-session endpoint", location)
+	}
+	query := location.Query()
+	if query.Get("client_id") == "" || query.Get("post_logout_redirect_uri") == "" {
+		t.Fatalf("logout redirect %q lacks client_id or post_logout_redirect_uri", location)
+	}
+	if hasHint := query.Get("id_token_hint") != ""; hasHint != wantHint {
+		t.Fatalf("logout redirect %q: id_token_hint present = %t, want %t", location, hasHint, wantHint)
+	}
 }
