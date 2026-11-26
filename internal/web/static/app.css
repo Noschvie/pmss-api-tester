@@ -197,7 +197,7 @@ button { font: inherit; }
 .theme-toggle:hover { border-color: var(--line-strong); color: var(--ink); }
 [data-theme="light"] .theme-dark, [data-theme="dark"] .theme-light { display: none; }
 
-.page-body { width: min(1050px, 100%); margin: 0 auto; padding: 36px 36px 20px; }
+.page-body { width: min(1200px, 100%); margin: 0 auto; padding: 36px 36px 20px; }
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 25px; }
 .eyebrow { margin-bottom: 7px; color: var(--accent); }
 h1, h2, p { margin-top: 0; }
@@ -298,7 +298,6 @@ h1 { margin-bottom: 5px; font: 600 var(--fs-h1) / 1.2 var(--font-sans); letter-s
 .target-link { color: var(--accent); }
 .card-note a { color: var(--accent); }
 
-.explorer-body { width: min(1200px, 100%); }
 .explorer-status, .explorer-result {
 	margin-bottom: 17px;
 	padding: 16px 18px;
@@ -396,7 +395,6 @@ h1 { margin-bottom: 5px; font: 600 var(--fs-h1) / 1.2 var(--font-sans); letter-s
 .schema-status { margin: 10px 0 0; font-size: var(--fs-meta); font-weight: 600; }
 .schema-valid { color: var(--good); }
 .schema-invalid, .schema-error { color: #a64b37; }
-.checks-body { width: min(1050px, 100%); }
 .checks-form { margin-bottom: 20px; }
 .checks-hint { max-width: 800px; color: var(--muted); font-size: var(--fs-meta); line-height: var(--lh-body); }
 .checks-hint code { padding: 1px 4px; border-radius: 4px; background: var(--surface-soft); font-family: var(--font-mono); }
