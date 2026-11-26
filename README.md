@@ -366,6 +366,19 @@ supplied path value contains characters that need escaping; otherwise that sub-c
 `503 broker_unavailable` and `504 broker_timeout` are distinct failures; requests are never
 retried automatically.
 
+## Related projects
+
+The tester is one of three test layers for the MQTT Security Service API:
+
+| Layer | Repository | Tests |
+|---|---|---|
+| Broker | [mqtt-acl-verify](https://github.com/Noschvie/mqtt-acl-verify) | ACLs and Dynamic Security directly against Mosquitto; these tests came first, the design of PMSS builds on them |
+| Service | [phylax-mqtt-security-service](https://github.com/Noschvie/phylax-mqtt-security-service) | Unit and integration tests: token → REST → MQTT/mTLS → DynSec |
+| API from outside | this repository | Read-only API explorer and conformance checks against a running stack |
+
+The tester does not check broker ACLs or the DynSec state behind the API, and it sends no changing
+requests; those are covered by the other two layers.
+
 ## Acknowledgements
 
 Thanks to [TasmoFleet](https://github.com/hellwand/TasmoFleet) for the design inspiration.
