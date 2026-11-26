@@ -379,7 +379,7 @@ The overall architecture and the read-only scope of version 1 are defined. The f
 | Technical interface description | Integrated OpenAPI specification |
 | Backend | Go `net/http` / `ServeMux` |
 | UI | `templ` and HTMX 2.x |
-| UI design | TasmoFleet GUI guidelines |
+| UI design | TasmoFleet GUI guidelines; typography: [gui-typography.md](gui-typography.md) |
 | Browser framework | No React |
 | Deployment | Docker, one container |
 | Build | Multi-stage, Go binary with embedded assets |
